@@ -37,7 +37,7 @@ public class Bungee implements PluginMessageListener, Listener {
 
     public Bungee(LokaVotA plugin) {
         this.plugin = plugin;
-        serverName = "pvp";
+        serverName = "pvpvota";
         plugin.server.getMessenger().registerOutgoingPluginChannel(plugin, "BungeeCord");
         plugin.server.getMessenger().registerIncomingPluginChannel(plugin, "BungeeCord", this);
     }

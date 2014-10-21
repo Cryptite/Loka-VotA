@@ -3,7 +3,6 @@ package com.cryptite.pvp.utils;
 import com.cryptite.pvp.CustomEffect;
 import com.cryptite.pvp.LokaVotA;
 import com.cryptite.pvp.PvPPlayer;
-import com.cryptite.pvp.arena.Arena2v2;
 import com.cryptite.pvp.talents.Talent;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -245,10 +244,6 @@ public class Combat {
                     return true;
                 }
             }
-        }
-
-        if (defender.arena != null && defender.arena instanceof Arena2v2) {
-            if (defender.isArenaPartner(attacker.name)) return true;
         }
 
         return false;

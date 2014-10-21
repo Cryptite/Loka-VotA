@@ -193,7 +193,6 @@ public class VotA extends Battleground {
             blueTeamReadyCount++;
         }
 
-        plugin.help.sendHelp(p.name, "vota");
         p.getPlayer().setScoreboard(teamManager.board);
 //        registerPlayerHealth(p);
         updateTalentSigns();

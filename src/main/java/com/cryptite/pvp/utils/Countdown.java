@@ -3,7 +3,6 @@ package com.cryptite.pvp.utils;
 import com.cryptite.pvp.Battleground;
 import com.cryptite.pvp.LokaVotA;
 import com.cryptite.pvp.PvPPlayer;
-import com.cryptite.pvp.skyvale.Skyvale;
 import me.confuser.barapi.BarAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -21,7 +20,6 @@ public class Countdown implements Runnable {
     private final int id;
     private int interval;
     private Battleground battleground;
-    private Skyvale skyvale;
     private PvPPlayer player;
     private final long timerStarted;
     private final String message;
@@ -31,12 +29,6 @@ public class Countdown implements Runnable {
         LokaVotA plugin = (LokaVotA) Bukkit.getPluginManager().getPlugin("LokaPvP");
         if (battleground.equalsIgnoreCase("vota")) {
             this.battleground = plugin.vota;
-//        } else if (battleground.equalsIgnoreCase("overload")) {
-//            this.battleground = plugin.overload;
-        } else if (battleground.equalsIgnoreCase("skyvale")) {
-            this.skyvale = plugin.skyvale;
-        } else {
-            this.player = plugin.getAccount(battleground);
         }
         this.timerStarted = System.currentTimeMillis();
         this.message = message;
@@ -100,9 +92,7 @@ public class Countdown implements Runnable {
     }
 
     List<PvPPlayer> getPlayers() {
-        if (battleground == null && skyvale != null) {
-            return skyvale.getAllPlayers();
-        } else if (battleground != null) {
+        if (battleground != null) {
             return battleground.getAllPlayers();
         } else {
             return new ArrayList<>(Arrays.asList(player));

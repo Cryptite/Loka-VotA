@@ -3,7 +3,6 @@ package com.cryptite.pvp;
 import com.cryptite.pvp.bungee.BattlegroundStatus;
 import com.cryptite.pvp.utils.Countdown;
 import com.cryptite.pvp.utils.Prowess;
-import com.cryptite.pvp.vota.VotA;
 import me.confuser.barapi.BarAPI;
 import net.minecraft.util.com.google.gson.Gson;
 import org.bukkit.*;
@@ -390,13 +389,8 @@ public class Battleground {
     }
 
     protected void setWin(PvPPlayer p) {
-        if (this instanceof VotA) {
-            p.valleyWins++;
-            plugin.bungee.sendMessage(p.name + ".vota.winvota", "Achievement");
-        } else {
-            p.overloadWins++;
-            plugin.bungee.sendMessage(p.name + ".vota.winoverload", "Achievement");
-        }
+        p.valleyWins++;
+        plugin.bungee.sendMessage(p.name + ".vota.winvota", "Achievement");
 
         p.prowess = Prowess.BG_WIN;
     }
@@ -420,11 +414,7 @@ public class Battleground {
     }
 
     protected void setLoss(PvPPlayer p) {
-        if (this instanceof VotA) {
-            p.valleyLosses++;
-        } else {
-            p.overloadLosses++;
-        }
+        p.valleyLosses++;
         p.prowess = Prowess.BG_LOSS;
     }
 
