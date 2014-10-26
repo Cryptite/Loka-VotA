@@ -46,7 +46,7 @@ public class PotionListener implements Listener {
 
                     //If 3 or more, achievement!
                     if (friendliesAffected >= 3) {
-                        plugin.bungee.sendMessage(pThrower.name + ".pvp.holygrenademultiple", "Achievement");
+                        plugin.bungee.sendMessage("loka", pThrower.name + ".pvp.holygrenademultiple", "Achievement");
                     }
                 }
             }

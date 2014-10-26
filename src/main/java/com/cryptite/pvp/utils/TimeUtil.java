@@ -3,7 +3,7 @@ package com.cryptite.pvp.utils;
 import java.util.concurrent.TimeUnit;
 
 public class TimeUtil {
-    public static int secondsSince(Long time) {
+    private static int secondsSince(Long time) {
         if (time == 0) return 0;
 
         return (int) TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - time);

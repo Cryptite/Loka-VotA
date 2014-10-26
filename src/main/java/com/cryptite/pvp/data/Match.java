@@ -1,4 +1,4 @@
-package com.cryptite.pvp.json;
+package com.cryptite.pvp.data;
 
 import java.util.List;
 

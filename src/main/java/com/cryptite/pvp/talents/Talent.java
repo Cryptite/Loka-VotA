@@ -16,8 +16,8 @@ public enum Talent {
     LUNGE(37),
     BLAST_PROTECTION(3),
     FRESH_START(12),
-    THORNS(21),
-    ENDER_HOOK(30),
+    RESISTANT(21),
+    HOOK(30),
     QUAKE(39),
     REFLEXES(5),
     FIRE_PROTECTION(14),
@@ -29,11 +29,12 @@ public enum Talent {
     POTION_SLINGER(25),
     RALLYING_CRY(34),
     SILENCE(43),
-    BANDAGE(8),
+    IMPROVED_BANDAGE(8),
     POTENCY(17),
     HOLY_GRENADE(26),
     LIFE_SHIELD(35),
     HEAL_ARROW(44),
+    BANDAGE(99),
     SPAWN(100);
 
     private final int talentSlot;

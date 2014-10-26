@@ -31,7 +31,7 @@ public class Rope {
     private RopeResult result;
 
     public static enum RopeResult {
-        MOB, ITEM, GROUND, AIR;
+        MOB, ITEM, GROUND, AIR
     }
 
     /**
@@ -60,7 +60,7 @@ public class Rope {
      *
      * @param end The end location.
      */
-    public void setEnd(Location end) {
+    void setEnd(Location end) {
         this.endLocation = end;
         spawn();
     }
@@ -93,7 +93,7 @@ public class Rope {
     /**
      * Make this Rope appear in the world. Despawns if there is no rope holder.
      */
-    public void spawn() {
+    void spawn() {
         if (holder == null) {
             despawn();
             return;
@@ -123,7 +123,7 @@ public class Rope {
     /**
      * Remove this rope and clean up the packets.
      */
-    public void despawn() {
+    void despawn() {
         holder = null;
 
         PacketPlayOutEntityDestroy destroy = new PacketPlayOutEntityDestroy(batLocation.getId());
@@ -140,7 +140,7 @@ public class Rope {
      *
      * @param toAttachTo The entity to glue to.
      */
-    public void glueEndTo(Entity toAttachTo) {
+    void glueEndTo(Entity toAttachTo) {
         PacketPlayOutAttachEntity attach = new PacketPlayOutAttachEntity(0, batLocation, ((CraftEntity) toAttachTo).getHandle());
         for (Player player : Bukkit.getOnlinePlayers()) {
             CraftPlayer cP = (CraftPlayer) player;
@@ -148,7 +148,7 @@ public class Rope {
         }
 
         GlueUpdater u = new GlueUpdater(toAttachTo);
-        u.task = Bukkit.getServer().getScheduler().runTaskTimer(Bukkit.getPluginManager().getPlugin("LokaPvP"), u, 0L, 1L);
+        u.task = Bukkit.getServer().getScheduler().runTaskTimer(Bukkit.getPluginManager().getPlugin("LokaVotA"), u, 0L, 1L);
     }
 
     private class GlueUpdater implements Runnable {

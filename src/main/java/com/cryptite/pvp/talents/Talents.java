@@ -122,6 +122,9 @@ public class Talents implements Listener {
                 item.setItemMeta(itemMeta);
                 talentLore.put(valueOf(slot), lore);
 
+                //Slot 99 is the bandage
+                if (slot == 99) continue;
+
                 if (p != null) {
                     if (p.canChangeTalents()) {
                         if (!p.talents.contains(Talent.valueOf(slot))) {
@@ -170,10 +173,7 @@ public class Talents implements Listener {
             pearlLore.add(ChatColor.GOLD + "Click to reset your talent points");
             pearl.setAmount(talentsLeft);
         } else if (p.talentsSaved) {
-//            pearlLore.add(ChatColor.GRAY + "You have " + ChatColor.GREEN + p.talentRespecs +
-//                    ChatColor.GRAY + " respecs remaining.");
             pearlLore.add(ChatColor.GOLD + "Click to reset your talent points");
-            pearl.setAmount(p.talentRespecs);
         } else {
             pearlLore.add(ChatColor.GRAY + "You have spent all your talent points.");
         }
@@ -275,7 +275,7 @@ public class Talents implements Listener {
                 } else if (material.equals(Material.NAME_TAG)) {
                     p.sendMessage(ChatColor.GRAY + "Your talent points have been set!");
                     pvpPlayer.talentsSaved = true;
-                    pvpPlayer.save();
+                    pvpPlayer.update("talents", pvpPlayer.talentsToString());
                     viewingPlayers.remove(pvpPlayer.name);
                     p.closeInventory();
 
@@ -354,6 +354,8 @@ public class Talents implements Listener {
         int slotNum = e.getSlot();
 
         for (int slot : talentGroups.get(getTalentGroup(slotNum))) {
+            if (slot == 99) continue;
+
             ItemStack nextItem = e.getInventory().getItem(slot);
             if (nextItem != null && !nextItem.getType().equals(Material.COAL)) {
                 if (add) {

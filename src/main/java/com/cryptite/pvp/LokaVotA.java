@@ -1,21 +1,18 @@
 package com.cryptite.pvp;
 
-import com.cryptite.pvp.bungee.AllianceChat;
 import com.cryptite.pvp.bungee.Bungee;
-import com.cryptite.pvp.bungee.Chat;
-import com.cryptite.pvp.bungee.SimpleChat;
-import com.cryptite.pvp.json.Match;
+import com.cryptite.pvp.data.Match;
+import com.cryptite.pvp.data.Town;
 import com.cryptite.pvp.listeners.*;
 import com.cryptite.pvp.talents.Talent;
 import com.cryptite.pvp.talents.Talents;
-import com.cryptite.pvp.utils.AFK;
 import com.cryptite.pvp.vota.VotA;
+import com.mongodb.DB;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.libs.com.google.gson.Gson;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -30,19 +27,19 @@ import java.util.*;
 import java.util.logging.Logger;
 
 import static com.cryptite.pvp.utils.LocationUtils.playCustomSound;
-import static org.bukkit.ChatColor.*;
+import static org.bukkit.ChatColor.GOLD;
+import static org.bukkit.ChatColor.GRAY;
 
 public class LokaVotA extends JavaPlugin implements CommandExecutor {
-    private final Logger log = Logger.getLogger("LokaPvP");
+    private final Logger log = Logger.getLogger("LokaVotA");
 
     //Plugin or Server-based variables
     public Server server;
     public BukkitScheduler scheduler;
-    private static String serverName; // Example: using the GetServer subchannel
-
     public PluginManager pm;
 
     public final Map<String, PvPPlayer> players = new HashMap<>();
+    public final Map<String, Town> towns = new HashMap<>();
 
     //Battleground variables
     public VotA vota;
@@ -57,7 +54,6 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
     //Trackers
     public Map<String, Talent> lastDamageCause = new HashMap<>();
     public Map<String, String> lastDamager = new HashMap<>();
-    public List<String> playersRooted = new ArrayList<>();
     public List<String> bandagingPlayers = new ArrayList<>();
 
     //Misc
@@ -67,8 +63,9 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
     public Location spawn;
     public TrapHandler traps;
     public SpeedRampHandler speedRamps;
-    public PlayerDB db;
-    private AFK afk;
+    public DB db;
+    //    private AFK afk;
+    public ChatManager chat;
 
     public void onEnable() {
         pm = this.getServer().getPluginManager();
@@ -79,8 +76,6 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         bungee = new Bungee(this);
         pm.registerEvents(bungee, this);
 
-        serverName = "Arena1";
-
         world = server.getWorld("world");
         spawn = new Location(world, 415, 44, 657.5);
         r = new Random();
@@ -90,14 +85,17 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         pm.registerEvents(new PlayerRespawnListener(this), this);
         pm.registerEvents(new PlayerDeathListener(this), this);
         pm.registerEvents(new PlayerDamageListener(this), this);
-        pm.registerEvents(new PlayerMoveListener(this), this);
         pm.registerEvents(new PlayerInteractListener(this), this);
         pm.registerEvents(new PlayerChatListener(this), this);
         pm.registerEvents(new ProjectileListener(this), this);
         pm.registerEvents(new PotionListener(this), this);
 
-        //DB
-//        db = new PlayerDB(this);
+        //ChatManager
+        chat = new ChatManager(this, bungee);
+        getCommand("p").setExecutor(chat);
+        getCommand("t").setExecutor(chat);
+        getCommand("a").setExecutor(chat);
+        getCommand("o").setExecutor(chat);
 
         //Traps
         traps = new TrapHandler(this);
@@ -110,8 +108,8 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         pm.registerEvents(talents, this);
 
         //AFK
-        afk = new AFK(this);
-        pm.registerEvents(afk, this);
+//        afk = new AFK(this);
+//        pm.registerEvents(afk, this);
 
         PluginDescriptionFile pdfFile = this.getDescription();
         System.out.println(pdfFile.getName() + " version " + pdfFile.getVersion() + " is enabled!");
@@ -159,69 +157,6 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
                 vota.matchReady();
             } else if (args[0].equalsIgnoreCase("start")) {
                 vota.beginMatch();
-            } else if (commandLabel.equalsIgnoreCase("p")) {
-                if (args.length < 1) {
-                    player.sendMessage(ChatColor.GRAY + "Talk in public chat instead of team chat.");
-                    player.sendMessage(ChatColor.AQUA + "Usage: " +
-                            ChatColor.YELLOW + "/p <message>" + ChatColor.AQUA + ".");
-                    return true;
-                }
-
-                PvPPlayer p = getAccount(player.getName());
-                StringBuilder b = new StringBuilder();
-                for (String arg : args) {
-                    b.append(arg).append(" ");
-                }
-
-                //Build the chat message with some information from our player class
-                Chat chat = new Chat(player.getName(), p.rank, b.toString(), p.townOwner, false, null, null);
-
-                //Send to everyone
-                globalChatMessage(parseChatMessage(chat), false);
-
-                //Send to everyone on Loka
-                sendChatToNetwork(player.getName(), b.toString());
-                return true;
-            } else if (commandLabel.equalsIgnoreCase("t")) {
-                if (args.length < 1) {
-                    player.sendMessage(ChatColor.GRAY + "Talk in town chat.");
-                    player.sendMessage(ChatColor.AQUA + "Usage: " +
-                            ChatColor.YELLOW + "/t <message>" + ChatColor.AQUA + ".");
-                    return true;
-                }
-
-                PvPPlayer p = getAccount(player.getName());
-                StringBuilder b = new StringBuilder();
-                for (String arg : args) {
-                    b.append(arg).append(" ");
-                }
-
-                //Build the chat message with some information from our player class
-//            Chat chat = new Chat(player.getName(), p.townRank, b.toString(), p.townOwner, false, p.town, p.townRank);
-
-                //Send to everyone on Loka
-                sendTownChatToNetwork(player.getName(), b.toString());
-                return true;
-            } else if (commandLabel.equalsIgnoreCase("a")) {
-                if (args.length < 1) {
-                    player.sendMessage(ChatColor.GRAY + "Talk in alliance chat.");
-                    player.sendMessage(ChatColor.AQUA + "Usage: " +
-                            ChatColor.YELLOW + "/a <message>" + ChatColor.AQUA + ".");
-                    return true;
-                }
-
-                PvPPlayer p = getAccount(player.getName());
-                StringBuilder b = new StringBuilder();
-                for (String arg : args) {
-                    b.append(arg).append(" ");
-                }
-
-                //Build the chat message with some information from our player class
-//            Chat chat = new Chat(player.getName(), p.townRank, b.toString(), p.townOwner, false, p.town, p.townRank);
-
-                //Send to everyone on Loka
-                sendAllianceChatToNetwork(player.getName(), b.toString());
-                return true;
             } else if (commandLabel.equalsIgnoreCase("leave")) {
                 PvPPlayer p = getAccount(player.getName());
                 if (p.bg != null) {
@@ -265,6 +200,17 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         }
 
         return null;
+    }
+
+    public Town getTown(String name) {
+        if (towns.containsKey(name)) {
+            return towns.get(name);
+        } else {
+            Town t = new Town(name);
+            t.load();
+            towns.put(name, t);
+            return t;
+        }
     }
 
     public void processMatch(Match match) {
@@ -369,97 +315,6 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         }, 5, 5);
 
         scheduler.runTaskLater(this, () -> scheduler.cancelTask(taskID), 20 * seconds);
-    }
-
-    public void globalChatMessage(String message, Boolean fromLoka) {
-        for (Player p : server.getOnlinePlayers()) {
-            if (p != null) {
-                p.sendMessage(message);
-            }
-        }
-    }
-
-    public String parseChatMessage(Chat chat) {
-        StringBuilder chatMessage = new StringBuilder();
-
-        if (chat.townOwner) {
-            chatMessage.append(ChatColor.AQUA).append("[");
-        } else {
-            chatMessage.append(ChatColor.GRAY).append("[");
-        }
-        if (chat.op || (chat.rank != null && chat.rank.equals("Old One"))) {
-            chatMessage.append(ChatColor.RED).append("Old One");
-        } else {
-            chatMessage.append(ChatColor.GOLD).append(chat.rank);
-        }
-        if (chat.townOwner) {
-            chatMessage.append(ChatColor.AQUA).append("]");
-        } else {
-            chatMessage.append(ChatColor.GRAY).append("]");
-        }
-        String playerColor;
-        if (chat.op) {
-            playerColor = (ChatColor.RED + chat.name);
-        } else {
-            playerColor = (ChatColor.WHITE + chat.name);
-        }
-
-        chatMessage.append(ChatColor.WHITE).append(" ").append(playerColor).append(ChatColor.WHITE);
-        chatMessage.append(": ").append(chat.message);
-
-        return chatMessage.toString();
-    }
-
-    public void sendChatToNetwork(String player, String message) {
-        SimpleChat chat = new SimpleChat(player, message, false, false);
-        bungee.sendMessage(new Gson().toJson(chat), "Chat");
-    }
-
-    public void townChatMessage(Chat chat) {
-        String playerColor;
-        if (chat.townOwner) {
-            playerColor = (AQUA + chat.name);
-        } else if (chat.op) {
-            playerColor = (RED + chat.name);
-        } else {
-            playerColor = (WHITE + chat.name);
-        }
-
-//        log.info("[TOWN] [" + chat.townTag + "] " + chat.rank + chat.name + ": " + chat.message);
-
-        for (Player p : server.getOnlinePlayers()) {
-            PvPPlayer pAccount = getAccount(p.getName());
-            if (pAccount.town != null && pAccount.town.equals(chat.town)) {
-                p.sendMessage(GRAY + "[" +
-                        AQUA + chat.townTag + GRAY + "] " +
-                        chat.rank + WHITE + playerColor +
-                        WHITE + " : " + chat.message);
-            }
-        }
-    }
-
-    public void allianceChatMessage(AllianceChat chat) {
-        String msg = GRAY + "[" + YELLOW + chat.alliance + GRAY + "] ";
-        msg += GRAY + "[" + AQUA + chat.town + GRAY + "] " + WHITE + chat.name + ": " + chat.message;
-
-//        log.info(ChatColor.stripColor(msg));
-
-        for (Player p : server.getOnlinePlayers()) {
-            PvPPlayer pAccount = getAccount(p.getName());
-            if (pAccount.alliance != null && pAccount.alliance.equals(chat.alliance)) {
-                p.sendMessage(msg);
-            }
-        }
-    }
-
-    void sendTownChatToNetwork(String player, String message) {
-        SimpleChat chat = new SimpleChat(player, message, true, false);
-        bungee.sendMessage(new Gson().toJson(chat), "Chat");
-    }
-
-    void sendAllianceChatToNetwork(String player, String message) {
-        SimpleChat chat = new SimpleChat(player, message, false, true);
-        bungee.sendMessage(new Gson().toJson(chat), "AllianceChat");
     }
 
     public void registerDamage(String victim, String attacker, Talent cause) {

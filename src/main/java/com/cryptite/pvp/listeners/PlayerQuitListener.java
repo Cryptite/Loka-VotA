@@ -11,7 +11,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import java.util.logging.Logger;
 
 public class PlayerQuitListener implements Listener {
-    private final Logger log = Logger.getLogger("LokaPvP-PlayerQuitListener");
+    private final Logger log = Logger.getLogger("LokaVotA-PlayerQuitListener");
     private final LokaVotA plugin;
 
     public PlayerQuitListener(LokaVotA plugin) {
@@ -25,11 +25,17 @@ public class PlayerQuitListener implements Listener {
 
         PvPPlayer p = plugin.players.get(event.getPlayer().getName());
 
+        //Cancel aura effects
+        if (p.aura != null) p.aura.cancel();
+
         if (p.bg != null) {
             final Battleground bg = plugin.getBG(p.bg);
             if (bg == null) return;
+//                if (bg instanceof Overload) {
+//                    plugin.overload.removePlayer(p);
+//                } else {
             bg.removePlayer(p);
-
+//                }
             //This should happen late so that the quitting player doesn't get used as the bungee communicator
             plugin.getServer().getScheduler().runTaskLater(plugin,
                     () -> bg.sendMatchUpdate(true), 40

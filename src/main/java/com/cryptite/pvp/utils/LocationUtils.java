@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
@@ -104,5 +105,25 @@ public class LocationUtils {
         }
 
         return randomLocation;
+    }
+
+    public static List<Block> getBlocksFromRegion(Location p1, Location p2) {
+        List<Block> blocks = new ArrayList<>();
+        int minX = Math.min(p1.getBlockX(), p2.getBlockX());
+        int maxX = Math.max(p1.getBlockX(), p2.getBlockX());
+        int minY = Math.min(p1.getBlockY(), p2.getBlockY());
+        int maxY = Math.max(p1.getBlockY(), p2.getBlockY());
+        int minZ = Math.min(p1.getBlockZ(), p2.getBlockZ());
+        int maxZ = Math.max(p1.getBlockZ(), p2.getBlockZ());
+
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    blocks.add(p1.getWorld().getBlockAt(x, y, z));
+                }
+            }
+        }
+
+        return blocks;
     }
 }

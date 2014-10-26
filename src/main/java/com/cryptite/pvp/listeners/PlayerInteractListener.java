@@ -7,10 +7,12 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.player.*;
+import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.inventory.ItemStack;
 
 public class PlayerInteractListener implements Listener {
@@ -29,7 +31,7 @@ public class PlayerInteractListener implements Listener {
         Material material = itemInHand.getType();
         PvPPlayer p = plugin.getAccount(player.getName());
 
-        if (plugin.talents.talentMaterials.containsKey(material) && !material.equals(Material.ENDER_PEARL)) {
+        if (plugin.talents.talentMaterials.containsKey(material)) {
             p.activateTalent(p.talentMaterials.get(material));
             e.setCancelled(true);
         } else if (itemInHand.getType().equals(Material.BOW)) {
@@ -39,11 +41,14 @@ public class PlayerInteractListener implements Listener {
             } else if (p.talentAvailable(Talent.HEAL_ARROW)) {
                 p.activateTalent(Talent.HEAL_ARROW);
                 e.setCancelled(true);
+            } else if (p.talentAvailable(Talent.HOOK)) {
+                p.activateTalent(Talent.HOOK);
+                e.setCancelled(true);
             }
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler
     public void onPlayerInteract(PlayerInteractEvent e) {
         final Player player = e.getPlayer();
         if (e.getAction().equals(Action.RIGHT_CLICK_AIR) || e.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
@@ -59,19 +64,6 @@ public class PlayerInteractListener implements Listener {
                 p.saveInventoryOrder();
                 p.sendMessage(ChatColor.AQUA + "Your inventory order preferences have been saved. " +
                         ChatColor.GRAY + "Whenever you respawn, your items will always be in the same slots.");
-            } else if (!material.equals(Material.ENDER_PEARL)) {
-                //Presumably the right-click version of using an ability.
-                if (plugin.talents.talentMaterials.containsKey(material)) {
-                    p.activateTalent(p.talentMaterials.get(material));
-                }
-            } else if (material.equals(Material.ENDER_PEARL)) {
-                final ItemStack pearlItem = player.getItemInHand().clone();
-                final int slot = player.getInventory().getHeldItemSlot();
-                p.talentAbilities.get(Talent.ENDER_HOOK).item = pearlItem;
-                plugin.scheduler.runTaskLater(plugin, () -> {
-                    pearlItem.setType(Material.COAL);
-                    player.getInventory().setItem(slot, pearlItem);
-                }, 20);
             } else if (material.equals(Material.BOOK_AND_QUILL)) {
                 String tpTarget = player.getItemInHand().getItemMeta().getDisplayName();
                 System.out.println("tpt: " + tpTarget);
@@ -82,6 +74,10 @@ public class PlayerInteractListener implements Listener {
                 if (tpTo == null) return;
 
                 player.teleport(tpTo.getLocation());
+            } else if (p.talentMaterials.containsKey(material)
+                    && (!material.equals(Material.POTION) && !material.equals(Material.BOW))) {
+                p.activateTalent(p.talentMaterials.get(material));
+                e.setCancelled(true);
             }
         }
 
@@ -96,22 +92,12 @@ public class PlayerInteractListener implements Listener {
                 } else if (p.talentAvailable(Talent.HEAL_ARROW)) {
                     p.activateTalent(Talent.HEAL_ARROW);
                     e.setCancelled(true);
+                } else if (p.talentAvailable(Talent.HOOK)) {
+                    p.activateTalent(Talent.HOOK);
+                    e.setCancelled(true);
                 }
             }
         }
-
-        //Stepping on an overload warppad?
-//        if (e.getAction().equals(Action.PHYSICAL)) {
-//            if (e.getClickedBlock().getType().equals(Material.IRON_PLATE)
-//                    && !plugin.overload.warpPadPlayers.contains(player.getName())
-//                    && !plugin.getAccount(player.getName()).offense) {
-//                //This is our pressure plate event.
-//                plugin.scheduler.runTaskLater(plugin,
-//                        () -> plugin.overload.gateWarpPlayer(player), 60
-//                );
-//                plugin.overload.warpPadPlayers.add(player.getName());
-//            }
-//        }
     }
 
     @EventHandler
@@ -125,14 +111,8 @@ public class PlayerInteractListener implements Listener {
         PvPPlayer p = plugin.getAccount(event.getPlayer().getName());
 
         //Only dropping arrows and potions is allowed in BGs (except VoC)
-        if (!event.getItemDrop().getItemStack().getType().equals(Material.ARROW)
-                && !event.getItemDrop().getItemStack().getType().equals(Material.POTION)) event.setCancelled(true);
-    }
-
-    @EventHandler
-    void onPearlTeleport(PlayerTeleportEvent e) {
-        if (e.getCause().equals(PlayerTeleportEvent.TeleportCause.ENDER_PEARL)) {
-            e.setCancelled(true);
-        }
+        if (p.bg != null
+                && (!event.getItemDrop().getItemStack().getType().equals(Material.ARROW)
+                && !event.getItemDrop().getItemStack().getType().equals(Material.POTION))) event.setCancelled(true);
     }
 }

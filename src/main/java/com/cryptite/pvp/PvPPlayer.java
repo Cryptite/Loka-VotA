@@ -1,12 +1,18 @@
 package com.cryptite.pvp;
 
-import com.cryptite.pvp.bungee.PlayerStats;
+import com.cryptite.pvp.data.Town;
+import com.cryptite.pvp.db.DBData;
 import com.cryptite.pvp.rest.Rest;
 import com.cryptite.pvp.rest.RestPlayer;
+import com.cryptite.pvp.talents.Aura;
+import com.cryptite.pvp.talents.Bandage;
 import com.cryptite.pvp.talents.Talent;
 import com.cryptite.pvp.talents.TalentAbility;
 import com.cryptite.pvp.utils.Rope;
-import org.bukkit.*;
+import com.mongodb.BasicDBObject;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.craftbukkit.libs.com.google.gson.Gson;
 import org.bukkit.craftbukkit.v1_7_R4.entity.CraftPlayer;
 import org.bukkit.enchantments.Enchantment;
@@ -16,14 +22,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scoreboard.Objective;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.logging.Logger;
 
 import static org.bukkit.ChatColor.stripColor;
@@ -31,26 +31,23 @@ import static org.bukkit.ChatColor.translateAlternateColorCodes;
 
 public class PvPPlayer {
     private final Logger log = Logger.getLogger("Artifact-PvPPlayer");
-
     private final LokaVotA plugin;
+
+    public final String name;
+    public UUID uuid;
+
     public Location location;
-    public World world;
-    public String town;
-    public String alliance;
-    public String townRank;
+    public Town town;
     public String bg;
     public double damage = 0;
-    public final String name;
     public String title;
     public String rank;
-    public Boolean townOwner = false;
     public Boolean ready = false;
+    public Boolean isAlive = true;
     public Boolean spectator = false;
     public Color playerColor;
-    public final ConfigFile config;
     public List<Talent> talents = new ArrayList<>();
     public boolean talentsSaved = false;
-    public final int talentRespecs = 0;
 
     //Stats
     public int arrowHits = 0;
@@ -62,78 +59,43 @@ public class PvPPlayer {
     public int valleyLosses = 0;
     public int valleyScore = 0;
     public int bgRating = 1500;
-    private long deserterTime = 0;
-    public int prowess = 0;
-
-    //Healthbar
-    public Objective healthBar;
 
     //Talents
     public final Map<Talent, TalentAbility> talentAbilities = new HashMap<>();
     public final Map<Material, Talent> talentMaterials = new HashMap<>();
-    public final Map<ItemStack, Integer> inventoryOrder = new HashMap<>();
+    public Map<String, Integer> inventoryOrder = new HashMap<>();
     public Rope hook;
+    public Bandage bandage;
+    public Aura aura;
 
     //Talent-Groove
     public int grooveStacks = 0;
-    private int maxHarmingPotions = 2;
+    public int maxHarmingPotions = 2;
     public boolean offense;
     public String team;
 
     //Achievement trackers
     public final List<String> lastStandAttackers = new ArrayList<>();
-    public Boolean provingGrounds = false;
 
     public PvPPlayer(LokaVotA plugin, String name) {
         this.name = name;
-        this.config = new ConfigFile(plugin, "players/" + name + ".yml");
         this.plugin = plugin;
     }
 
-    public void save() {
-        config.set("name", name);
-        config.set("rank", rank);
-        config.set("townowner", townOwner);
-        config.set("arrowhits", arrowHits);
-        config.set("arrowsfired", arrowsFired);
-        config.set("valleyKills", valleyKills);
-        config.set("valleyDeaths", valleyDeaths);
-        config.set("valleyCaps", valleyCaps);
-        config.set("valleyWins", valleyWins);
-        config.set("valleyLosses", valleyLosses);
-        config.set("bgRating", bgRating);
-        config.set("deserterTime", deserterTime);
-        config.save();
-
-        //Send their updated stats along with the player
-        PlayerStats stats = new PlayerStats(this);
-        plugin.bungee.sendMessage(new net.minecraft.util.com.google.gson.Gson().toJson(stats), "PlayerUpdate");
-        //Saving also updates Loka with all the information.
+    public void update(BasicDBObject data) {
+        new DBData(this).update(data);
     }
 
-    public void saveInventoryOrder() {
-        inventoryOrder.clear();
-        log.info("Saving inventory order for " + name);
-        for (int i = 0; i <= getPlayer().getInventory().getSize(); i++) {
-            ItemStack item = getPlayer().getInventory().getItem(i);
-            if (item != null && !item.getType().equals(Material.COAL)) {
-                inventoryOrder.put(item, i);
-//                config.set("inventoryorder", null);
-            }
-        }
+    public void update(String key, Object value) {
+        new DBData(this).set(key, value);
+    }
 
-        for (ItemStack item : inventoryOrder.keySet()) {
-            if (item.getType().equals(Material.POTION)) {
-                if (item.getDurability() == 16389) {
-                    config.set("inventoryorder.POTION-HEAL", inventoryOrder.get(item));
-                } else {
-                    config.set("inventoryorder.POTION-HARM", inventoryOrder.get(item));
-                }
-            } else {
-                config.set("inventoryorder." + item.getType().toString(), inventoryOrder.get(item));
-            }
-        }
-        config.save();
+    public void increment(String key) {
+        increment(key, 1);
+    }
+
+    public void increment(String key, int amount) {
+        new DBData(this).increment(key, amount);
     }
 
     public void postPlayer() {
@@ -153,56 +115,45 @@ public class PvPPlayer {
     }
 
     public void load() {
-        rank = config.get("rank", rank);
-        townOwner = Boolean.parseBoolean(config.get("townowner", townOwner));
-        arrowHits = Integer.parseInt(config.get("arrowhits", arrowHits));
-        arrowsFired = Integer.parseInt(config.get("arrowsfired", arrowsFired));
-        valleyKills = Integer.parseInt(config.get("valleyKills", valleyKills));
-        valleyDeaths = Integer.parseInt(config.get("valleyDeaths", valleyDeaths));
-        valleyCaps = Integer.parseInt(config.get("valleyCaps", valleyCaps));
-        valleyWins = Integer.parseInt(config.get("valleyWins", valleyWins));
-        valleyLosses = Integer.parseInt(config.get("valleyLosses", valleyLosses));
-        bgRating = Integer.parseInt(config.get("bgRating", bgRating));
-        deserterTime = Long.parseLong(config.get("deserterTime", deserterTime));
+        if (name == null) return;
+
+        DBData dbData = new DBData(this);
+        uuid = dbData.uuid;
+
+        rank = dbData.get("rank", rank);
+//        prowess = Integer.parseInt(dbData.get("prowess", prowess));
+        arrowHits = Integer.parseInt(dbData.get("arrowhits", arrowHits));
+        arrowsFired = Integer.parseInt(dbData.get("arrowsfired", arrowsFired));
+        valleyKills = Integer.parseInt(dbData.get("valleyKills", valleyKills));
+        valleyDeaths = Integer.parseInt(dbData.get("valleyDeaths", valleyDeaths));
+        valleyCaps = Integer.parseInt(dbData.get("valleyCaps", valleyCaps));
+        valleyWins = Integer.parseInt(dbData.get("valleyWins", valleyWins));
+        valleyLosses = Integer.parseInt(dbData.get("valleyLosses", valleyLosses));
+        bgRating = Integer.parseInt(dbData.get("bgRating", bgRating));
         valleyScore = getVotaScore();
-        loadInventoryOrder();
+        loadTalents(dbData.get("talents", null));
 
-//        loadFromDB();
+        String town = dbData.get("town", null);
+        if (town != null) this.town = plugin.getTown(town);
+
+        if (dbData.data != null) {
+            Map<String, Integer> inventoryData = (Map) dbData.data.get("inventoryorder");
+            if (inventoryData != null) inventoryOrder.putAll(inventoryData);
+        }
+
+        if (valleyWins == 0 || valleyLosses == 0) updateMissingPvPData();
     }
 
-    private void loadFromDB() {
-        ResultSet result = plugin.db.getPlayer(this);
-        if (result == null) {
-            System.out.println("Nothing gotten from db");
-            return;
-        }
-
-        try {
-            town = result.getString("town");
-            System.out.println("Got town = " + town + " from db");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+    private void updateMissingPvPData() {
+        ConfigFile config = new ConfigFile(plugin, "players/" + name + ".yml");
+        update("valleyKills", Integer.parseInt(config.get("valleyKills", valleyKills)));
+        update("valleyDeaths", Integer.parseInt(config.get("valleyDeaths", valleyDeaths)));
+        update("valleyCaps", Integer.parseInt(config.get("valleyCaps", valleyCaps)));
+        System.out.println("[DB] Updated missing data for " + name);
     }
 
-    void loadInventoryOrder() {
-        inventoryOrder.clear();
-        if (config.configFile.exists() && config.getAll("inventoryorder", null) != null) {
-            for (String item : config.getAll("inventoryorder", null)) {
-                int slot = Integer.parseInt(config.get("inventoryorder." + item, null));
-                ItemStack i;
-                if (item.contains("-HEAL")) {
-                    i = new ItemStack(Material.POTION);
-                    i.setDurability((short) 16389);
-                } else if (item.contains("-HARM")) {
-                    i = new ItemStack(Material.POTION);
-                    i.setDurability((short) 16428);
-                } else {
-                    i = new ItemStack(Material.valueOf(item));
-                }
-                inventoryOrder.put(i, slot);
-            }
-        }
+    public Boolean isTownOwner() {
+        return town != null && town.owner.equals(name);
     }
 
     public Boolean canChangeTalents() {
@@ -210,6 +161,8 @@ public class PvPPlayer {
     }
 
     public void loadTalents(String talentsStr) {
+        if (talentsStr == null) return;
+
         String section = "talents";
         ConfigFile config = new ConfigFile(plugin, "talents.yml");
 
@@ -234,7 +187,8 @@ public class PvPPlayer {
                 int cooldown = Integer.parseInt(config.get(section + "." + infoItem + ".cooldown", 0));
                 int length = Integer.parseInt(config.get(section + "." + infoItem + ".length", 0));
 
-                if (talentSlots.contains(slot)) {
+                //Slot 99 is the bandage
+                if (slot == 99 || talentSlots.contains(slot)) {
                     if (cooldown > 0) {
                         talentAbilities.put(Talent.valueOf(slot),
                                 new TalentAbility(plugin, Talent.valueOf(slot), stripColor(title), material, length, cooldown));
@@ -243,6 +197,11 @@ public class PvPPlayer {
                     talentMaterials.put(material, Talent.valueOf(slot));
                 }
             }
+        }
+
+        //Improved bandage makes Bandage's length 9 seconds
+        if (talents.contains(Talent.IMPROVED_BANDAGE) && talentAbilities.containsKey(Talent.BANDAGE)) {
+            talentAbilities.get(Talent.BANDAGE).length = 9;
         }
 
         if (talents.contains(Talent.POTION_SLINGER)) {
@@ -258,6 +217,11 @@ public class PvPPlayer {
             b.append("").append(Talent.toInt(t)).append(",");
         }
         return b.substring(0, b.length() - 1);
+    }
+
+    public String getTownRank() {
+        if (town == null) return "";
+        return town.getRank(name);
     }
 
     public void sendMessage(String message) {
@@ -349,17 +313,32 @@ public class PvPPlayer {
             items.add(bow);
             items.add(new ItemStack(Material.POTION, numHealPotions, (short) 16389));
             items.add(new ItemStack(Material.POTION, maxHarmingPotions, (short) 16428));
+            if (bg != null && bg.equals("Skyvale")) {
+                items.add(new ItemStack(Material.STONE_PICKAXE));
+            }
 
             //Add ability items
             items.addAll(getAbilityItems());
             items.add(arrows);
 
             setInventory(items, p);
+
+            //Start Aura
+            if (!hasTalent(Talent.SILENCE)) return;
+
+            if (aura != null) {
+                aura.cancel();
+                aura = new Aura(this);
+            } else {
+                aura = new Aura(this);
+            }
         }
     }
 
     void setInventory(List<ItemStack> items, Player p) {
         for (ItemStack item : items) {
+            if (item == null) continue;
+
             int slot = getOrder(item);
             if (slot >= 0) {
                 if (p.getInventory().getItem(slot) != null) {
@@ -384,15 +363,37 @@ public class PvPPlayer {
         }
     }
 
+    public void saveInventoryOrder() {
+        inventoryOrder.clear();
+        for (int i = 0; i <= getPlayer().getInventory().getSize(); i++) {
+            ItemStack item = getPlayer().getInventory().getItem(i);
+            if (item != null && !item.getType().equals(Material.COAL)) {
+                if (item.getType().equals(Material.POTION)) {
+                    if (item.getDurability() == 16389) {
+                        inventoryOrder.put("POTION-HEAL", i);
+                    } else {
+                        inventoryOrder.put("POTION-HARM", i);
+                    }
+                } else {
+                    inventoryOrder.put(item.getType().toString(), i);
+                }
+            }
+        }
+
+        update("inventoryorder", new BasicDBObject(inventoryOrder));
+    }
+
     public int getOrder(ItemStack item) {
-        for (ItemStack i : inventoryOrder.keySet()) {
-            if (i.getType().equals(item.getType())) {
+        for (String i : inventoryOrder.keySet()) {
+            if (i.equals(item.getType().toString())) {
                 if (!inventoryOrder.containsKey(i)) break;
 
                 //Special case for potions
-                if (i.getType().equals(Material.POTION)) {
-                    if (i.getDurability() == item.getDurability()) {
-                        return inventoryOrder.get(i);
+                if (i.equals(Material.POTION.toString())) {
+                    if (item.getDurability() == 16389) {
+                        return inventoryOrder.get("POTION-HEAL");
+                    } else {
+                        return inventoryOrder.get("POTION-HARM");
                     }
                 } else {
                     return inventoryOrder.get(i);
@@ -409,7 +410,6 @@ public class PvPPlayer {
         ItemStack leggings = new ItemStack(Material.LEATHER_LEGGINGS);
 
         applyTalentsToChest(chest);
-        applyTalentsToLeggings(leggings);
         applyTalentsToBoots(boots);
 
         //Set armor enchants + colors
@@ -480,10 +480,6 @@ public class PvPPlayer {
     }
 
     void applyTalentsToChest(ItemStack chest) {
-        if (talents.contains(Talent.THORNS)) {
-            chest.addEnchantment(Enchantment.THORNS, 3);
-        }
-
         if (talents.contains(Talent.FIRE_PROTECTION)) {
             chest.addEnchantment(Enchantment.PROTECTION_FIRE, 1);
         }
@@ -499,19 +495,9 @@ public class PvPPlayer {
         }
     }
 
-    void applyTalentsToLeggings(ItemStack leggings) {
-        if (talents.contains(Talent.THORNS)) {
-            leggings.addEnchantment(Enchantment.THORNS, 3);
-        }
-    }
-
     void applyTalentsToBoots(ItemStack boots) {
         if (talents.contains(Talent.BOUNCY)) {
             boots.addEnchantment(Enchantment.PROTECTION_FALL, 2);
-        }
-
-        if (talents.contains(Talent.THORNS)) {
-            boots.addEnchantment(Enchantment.THORNS, 3);
         }
 
         if (talents.contains(Talent.HARDENED)) {

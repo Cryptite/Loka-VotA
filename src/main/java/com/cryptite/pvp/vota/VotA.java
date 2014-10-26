@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import static com.cryptite.pvp.utils.LocationUtils.getBlocksFromRegion;
 import static com.cryptite.pvp.utils.Rating.getRatingChange;
 import static org.bukkit.ChatColor.*;
 
@@ -55,11 +56,8 @@ public class VotA extends Battleground {
         VotAArtifact hiddenControl = new VotAArtifact(this, "hidden");
         hiddenControl.region = "valleya1";
         hiddenControl.world = world;
-        hiddenControl.woolMinX = -52;
-        hiddenControl.woolMaxX = -50;
-        hiddenControl.woolMinZ = -82;
-        hiddenControl.woolMaxZ = -80;
-        hiddenControl.woolY = 70;
+        hiddenControl.woolBlocks = getBlocksFromRegion(new Location(world, -52, 70, -82),
+                new Location(world, -50, 70, -80));
         //Obsidian Blocks
         hiddenControl.artifactBlocks.add(world.getBlockAt(-49, 75, -82));
         hiddenControl.artifactBlocks.add(world.getBlockAt(-49, 75, -81));
@@ -75,11 +73,8 @@ public class VotA extends Battleground {
         VotAArtifact middleControl = new VotAArtifact(this, "middle");
         middleControl.region = "valleya2";
         middleControl.world = world;
-        middleControl.woolMinX = -7;
-        middleControl.woolMaxX = -5;
-        middleControl.woolMinZ = 3;
-        middleControl.woolMaxZ = 5;
-        middleControl.woolY = 69;
+        middleControl.woolBlocks = getBlocksFromRegion(new Location(world, -7, 69, 3),
+                new Location(world, -5, 69, 5));
         middleControl.artifactBlocks.add(world.getBlockAt(-4, 74, 3));
         middleControl.artifactBlocks.add(world.getBlockAt(-4, 74, 4));
         middleControl.artifactBlocks.add(world.getBlockAt(-5, 74, 6));
@@ -96,11 +91,8 @@ public class VotA extends Battleground {
         VotAArtifact lowerControl = new VotAArtifact(this, "lower");
         lowerControl.region = "valleya3";
         lowerControl.world = world;
-        lowerControl.woolMinX = 37;
-        lowerControl.woolMaxX = 39;
-        lowerControl.woolMinZ = 73;
-        lowerControl.woolMaxZ = 75;
-        lowerControl.woolY = 49;
+        lowerControl.woolBlocks = getBlocksFromRegion(new Location(world, 37, 49, 73),
+                new Location(world, 39, 49, 75));
         lowerControl.artifactBlocks.add(world.getBlockAt(40, 54, 73));
         lowerControl.artifactBlocks.add(world.getBlockAt(40, 54, 74));
         lowerControl.artifactBlocks.add(world.getBlockAt(39, 54, 76));
@@ -115,23 +107,10 @@ public class VotA extends Battleground {
         artifacts.add(middleControl);
         artifacts.add(lowerControl);
 
-        doorBlocks.add(world.getBlockAt(-44, 70, 62));
-        doorBlocks.add(world.getBlockAt(-44, 71, 62));
-        doorBlocks.add(world.getBlockAt(-51, 70, 62));
-        doorBlocks.add(world.getBlockAt(-51, 71, 62));
-        doorBlocks.add(world.getBlockAt(-68, 72, 51));
-        doorBlocks.add(world.getBlockAt(-68, 73, 51));
-        doorBlocks.add(world.getBlockAt(-68, 72, 44));
-        doorBlocks.add(world.getBlockAt(-68, 73, 44));
-
-        doorBlocks.add(world.getBlockAt(32, 74, -47));
-        doorBlocks.add(world.getBlockAt(32, 75, -47));
-        doorBlocks.add(world.getBlockAt(39, 74, -47));
-        doorBlocks.add(world.getBlockAt(39, 75, -47));
-        doorBlocks.add(world.getBlockAt(52, 74, -48));
-        doorBlocks.add(world.getBlockAt(52, 75, -48));
-        doorBlocks.add(world.getBlockAt(59, 74, -48));
-        doorBlocks.add(world.getBlockAt(59, 75, -48));
+        doorBlocks.addAll(getBlocksFromRegion(new Location(world, 35, 75, -47), new Location(world, 36, 74, -47)));
+        doorBlocks.addAll(getBlocksFromRegion(new Location(world, 56, 75, -48), new Location(world, 55, 74, -48)));
+        doorBlocks.addAll(getBlocksFromRegion(new Location(world, -48, 71, 62), new Location(world, -47, 70, 62)));
+        doorBlocks.addAll(getBlocksFromRegion(new Location(world, -68, 73, 47), new Location(world, -68, 72, 48)));
 
         plugin.inventoryPreferenceSigns.add(world.getBlockAt(-58, 83, 63));
         plugin.inventoryPreferenceSigns.add(world.getBlockAt(-59, 83, 62));
@@ -143,11 +122,6 @@ public class VotA extends Battleground {
     private void setupScoreboards() {
         teamManager = new TeamManager(plugin, scoreboard);
         scoresObjective = teamManager.board.registerNewObjective("scores", "dummy");
-//        playerScoresObjective = teamManager.board.registerNewObjective("pscores", "dummy");
-
-//        playerScoresObjective.setDisplaySlot(DisplaySlot.PLAYER_LIST);
-//        playerScoresObjective.setDisplayName(GRAY + "Player Scores");
-
         updateArtifactControlObjectives();
     }
 
@@ -193,6 +167,7 @@ public class VotA extends Battleground {
             blueTeamReadyCount++;
         }
 
+//        plugin.help.sendHelp(p.name, "vota");
         p.getPlayer().setScoreboard(teamManager.board);
 //        registerPlayerHealth(p);
         updateTalentSigns();
@@ -275,14 +250,14 @@ public class VotA extends Battleground {
                             messageAllPlayers(AQUA + "The " + RED + "Red" +
                                     AQUA + " team has control of all three points!", null);
                             for (PvPPlayer p : redTeam.values()) {
-                                plugin.bungee.sendMessage(p.name + ".vota.votatriplecap", "Achievement");
+                                plugin.bungee.sendMessage("loka", p.name + ".vota.votatriplecap", "Achievement");
                             }
                             tripleCapNotification = true;
                         } else if (blueCount == 3) {
                             messageAllPlayers(AQUA + "The " + AQUA + "Blue" +
                                     AQUA + " team has control of all three points!", null);
                             for (PvPPlayer p : blueTeam.values()) {
-                                plugin.bungee.sendMessage(p.name + ".vota.votatriplecap", "Achievement");
+                                plugin.bungee.sendMessage("loka", p.name + ".vota.votatriplecap", "Achievement");
                             }
                             tripleCapNotification = true;
                         } else {
@@ -366,7 +341,7 @@ public class VotA extends Battleground {
             if (!artifactCaps.get(name).contains(artifact)) {
                 if (artifactCaps.get(name).size() == 2) {
                     //Successfully captured each of the artifacts!
-                    plugin.bungee.sendMessage(name + ".vota.captureallartifacts", "Achievement");
+                    plugin.bungee.sendMessage("loka", name + ".vota.captureallartifacts", "Achievement");
                 }
                 artifactCaps.get(name).add(artifact);
             }
@@ -380,6 +355,7 @@ public class VotA extends Battleground {
     private void checkArtifactControl(VotAArtifact artifact) {
         List<PvPPlayer> blueCappers = artifact.getCapturers(blueTeam.values());
         List<PvPPlayer> redCappers = artifact.getCapturers(redTeam.values());
+        int originalProgress = artifact.progress;
 
         if (blueCappers.size() > 0 && redCappers.size() == 0) {
             //Red team owns this point
@@ -469,7 +445,7 @@ public class VotA extends Battleground {
 
         }
 
-        if ((blueCappers.size() > 0) || (redCappers.size() > 0)) {
+        if (originalProgress != artifact.progress) {
             artifact.setVisualProgress();
         }
     }
@@ -477,11 +453,10 @@ public class VotA extends Battleground {
     void capturedArtifact(List<PvPPlayer> cappers, String artifact) {
         for (PvPPlayer p : cappers) {
             updatePlayerScore(p.name, 3);
-            p.valleyCaps++;
-            p.save();
+            p.increment("valleyCaps");
 
             checkArtifactAchievement(p.name, artifact);
-            plugin.bungee.sendMessage(p.name + ".vota.captureartifact", "Achievement");
+            plugin.bungee.sendMessage("loka", p.name + ".vota.captureartifact", "Achievement");
         }
     }
 
@@ -496,6 +471,10 @@ public class VotA extends Battleground {
             }
         }
 
+        checkScoreResult();
+    }
+
+    public void checkScoreResult() {
         scoresObjective.setDisplayName(GRAY + "Score: " + RED + redScore + GRAY + "-" + AQUA + blueScore);
 
         if ((redScore > 80 || blueScore > 80) && !gameAlmostOverNotification) {
@@ -536,7 +515,7 @@ public class VotA extends Battleground {
                 p.updateBGRating(getRatingChange(redTeamMMR, blueTeamMMR), playerScores.get(p.name));
 
                 if (shutout) {
-                    plugin.bungee.sendMessage(p.name + ".vota.votashutout", "Achievement");
+                    plugin.bungee.sendMessage("loka", p.name + ".vota.votashutout", "Achievement");
                 }
             }
 
@@ -554,7 +533,7 @@ public class VotA extends Battleground {
                 p.updateBGRating(getRatingChange(blueTeamMMR, redTeamMMR), playerScores.get(p.name));
 
                 if (shutout) {
-                    plugin.bungee.sendMessage(p.name + ".vota.votashutout", "Achievement");
+                    plugin.bungee.sendMessage("loka", p.name + ".vota.votashutout", "Achievement");
                 }
             }
 
@@ -568,12 +547,11 @@ public class VotA extends Battleground {
         }
 
         for (PvPPlayer p : getAllPlayers()) {
-            p.save();
             p.postPlayer();
-            plugin.bungee.sendMessage(p.name + ".vota.playvota", "Achievement");
+            plugin.bungee.sendMessage("loka", p.name + ".vota.playvota", "Achievement");
         }
 
-        plugin.bungee.sendMessage(new Gson().toJson(results), "BGResults");
+        plugin.bungee.sendMessage("loka", new Gson().toJson(results), "BGResults");
     }
 
 

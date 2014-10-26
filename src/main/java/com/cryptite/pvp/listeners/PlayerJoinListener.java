@@ -23,7 +23,7 @@ public class PlayerJoinListener implements Listener {
     @EventHandler(priority = EventPriority.LOW)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player p = event.getPlayer();
-        final String player = p.getName();
+        PvPPlayer player = plugin.getAccount(p.getName());
 
         //No movement
         p.setVelocity(new Vector(0, 0, 0));
@@ -79,13 +79,13 @@ public class PlayerJoinListener implements Listener {
         );
     }
 
-    void sendToMatch(String player) {
-        PvPPlayer p = plugin.getAccount(player);
-
-        if (p.spectator) {
-            plugin.vota.joinSpectator(p);
-        } else {
-            plugin.vota.playerReady(p);
+    void sendToMatch(PvPPlayer p) {
+        if (p.bg != null) {
+            if (p.spectator) {
+                plugin.vota.joinSpectator(p);
+            } else {
+                plugin.vota.playerReady(p);
+            }
         }
     }
 }

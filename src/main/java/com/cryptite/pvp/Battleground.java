@@ -3,6 +3,7 @@ package com.cryptite.pvp;
 import com.cryptite.pvp.bungee.BattlegroundStatus;
 import com.cryptite.pvp.utils.Countdown;
 import com.cryptite.pvp.utils.Prowess;
+import com.cryptite.pvp.vota.VotA;
 import me.confuser.barapi.BarAPI;
 import net.minecraft.util.com.google.gson.Gson;
 import org.bukkit.*;
@@ -90,7 +91,7 @@ public class Battleground {
     protected static final int MatchStart = 60;
     protected static final int minPlayersPerTeam = 2;
     protected static final int DoorsOpenLength = 15;
-    protected long timeDoorsClosed = 0;
+    private long timeDoorsClosed = 0;
 
     //Coutndown
     protected Countdown countdown;
@@ -133,7 +134,7 @@ public class Battleground {
             status.redSize = 0;
             status.blueSize = 0;
         }
-        plugin.bungee.sendMessage(new Gson().toJson(status), "BGUpdate");
+        plugin.bungee.sendMessage("loka", new Gson().toJson(status), "BGUpdate");
     }
 
     public List<PvPPlayer> getAllPlayers() {
@@ -336,7 +337,7 @@ public class Battleground {
                         doorsOpen = true;
                     } else {
                         for (Block b : doorBlocks) {
-                            b.setType(Material.REDSTONE_TORCH_ON);
+                            b.setType(Material.IRON_BLOCK);
                         }
                         doorsOpen = false;
                         timeDoorsClosed = System.currentTimeMillis();
@@ -389,10 +390,14 @@ public class Battleground {
     }
 
     protected void setWin(PvPPlayer p) {
-        p.valleyWins++;
-        plugin.bungee.sendMessage(p.name + ".vota.winvota", "Achievement");
-
-        p.prowess = Prowess.BG_WIN;
+        if (this instanceof VotA) {
+            p.increment("valleyWins");
+            plugin.bungee.sendMessage("loka", p.name + ".vota.winvota", "Achievement");
+        } else {
+//            p.overloadWins++;
+//            plugin.bungee.sendMessage(p.name + ".vota.winoverload", "Achievement");
+        }
+        p.increment("earnedprowess", Prowess.BG_WIN);
     }
 
     Integer getTeamMMR(String team) {
@@ -414,8 +419,12 @@ public class Battleground {
     }
 
     protected void setLoss(PvPPlayer p) {
-        p.valleyLosses++;
-        p.prowess = Prowess.BG_LOSS;
+        if (this instanceof VotA) {
+            p.increment("valleyLosses");
+        } else {
+//            p.overloadLosses++;
+        }
+        p.increment("earnedprowess", Prowess.BG_LOSS);
     }
 
     protected int getTeam(PvPPlayer p) {

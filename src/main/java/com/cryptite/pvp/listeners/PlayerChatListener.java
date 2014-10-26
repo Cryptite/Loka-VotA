@@ -3,7 +3,6 @@ package com.cryptite.pvp.listeners;
 import com.cryptite.pvp.Battleground;
 import com.cryptite.pvp.LokaVotA;
 import com.cryptite.pvp.PvPPlayer;
-import com.cryptite.pvp.bungee.Chat;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -41,11 +40,7 @@ public class PlayerChatListener implements Listener {
                 bg.messageBlueTeam(message);
             }
         } else {
-            Chat chat = new Chat(player.getName(), p.rank, e.getMessage(), p.townOwner, false, null, null);
-
-            //Send to everyone
-            plugin.globalChatMessage(plugin.parseChatMessage(chat), false);
-            plugin.sendChatToNetwork(player.getName(), e.getMessage());
+            plugin.chat.sendMessage(player.getName(), "public", e.getMessage(), true);
         }
     }
 }

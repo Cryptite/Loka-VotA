@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 public class PlayerDeathListener implements Listener {
-    private final Logger log = Logger.getLogger("LokaPvP-PlayerQuitListener");
+    private final Logger log = Logger.getLogger("LokaVotA-PlayerQuitListener");
     private final LokaVotA plugin;
 
     public PlayerDeathListener(LokaVotA plugin) {
@@ -62,6 +62,7 @@ public class PlayerDeathListener implements Listener {
                         if (bg instanceof VotA) {
                             bg.blueScore++;
                             ((VotA) bg).updateScore();
+                            ((VotA) bg).checkScoreResult();
                         }
                     } else if (bg.blueTeam.containsKey(p.name) && bg.redTeam.containsKey(killer.name)) {
                         playerColor = ChatColor.BLUE;
@@ -74,6 +75,7 @@ public class PlayerDeathListener implements Listener {
                         if (bg instanceof VotA) {
                             bg.redScore++;
                             ((VotA) bg).updateScore();
+                            ((VotA) bg).checkScoreResult();
                         }
                     }
                     //Increment player's kill count
@@ -81,7 +83,8 @@ public class PlayerDeathListener implements Listener {
 
                     if (bg instanceof VotA) {
                         p.valleyDeaths++;
-                        killer.valleyKills++;
+                        p.increment("valleyDeaths");
+                        killer.increment("valleyKills");
                     }
                 }
 
@@ -146,16 +149,14 @@ public class PlayerDeathListener implements Listener {
     }
 
     void checkVictimAchievements(PvPPlayer victim, PvPPlayer killer) {
-        if (victim.hasTalentActive(Talent.ENDER_HOOK) && !killer.provingGrounds) {
-            plugin.bungee.sendMessage(killer.name + ".pvp.killresolvedplayer", "Achievement");
-        } else if (victim.hasTalentActive(Talent.EXPLOSIVE_ARROW) && !killer.provingGrounds) {
-            plugin.bungee.sendMessage(killer.name + ".pvp.killexplosivearrowplayer", "Achievement");
-        } else if (victim.hasTalentActive(Talent.RALLYING_CRY) && !killer.provingGrounds) {
-            plugin.bungee.sendMessage(killer.name + ".pvp.killvanishedplayer", "Achievement");
+        if (victim.hasTalentActive(Talent.EXPLOSIVE_ARROW)) {
+            plugin.bungee.sendMessage("loka", killer.name + ".pvp.killexplosivearrowplayer", "Achievement");
+        } else if (victim.hasTalentActive(Talent.RALLYING_CRY)) {
+            plugin.bungee.sendMessage("loka", killer.name + ".pvp.killvanishedplayer", "Achievement");
         }
 
         if (victim.getPlayer().hasPotionEffect(PotionEffectType.POISON)) {
-            plugin.bungee.sendMessage(killer.name + ".pvp.killtrappedplayer", "Achievement");
+            plugin.bungee.sendMessage("loka", killer.name + ".pvp.killtrappedplayer", "Achievement");
         }
 
 //        if (victim.talentAbilities.get(Talent.SILENCE).enderCharge != null) {
@@ -164,10 +165,10 @@ public class PlayerDeathListener implements Listener {
     }
 
     void checkKillerActiveTalent(PvPPlayer killer) {
-        if (killer.hasTalentActive(Talent.EXPLOSIVE_ARROW) && !killer.provingGrounds) {
-            plugin.bungee.sendMessage(killer.name + ".pvp.killplayerwithexplosivearrow", "Achievement");
-        } else if (killer.hasTalentActive(Talent.LUNGE) && !killer.provingGrounds) {
-            plugin.bungee.sendMessage(killer.name + ".pvp.killwithlunge", "Achievement");
+        if (killer.hasTalentActive(Talent.EXPLOSIVE_ARROW)) {
+            plugin.bungee.sendMessage("loka", killer.name + ".pvp.killplayerwithexplosivearrow", "Achievement");
+        } else if (killer.hasTalentActive(Talent.LUNGE)) {
+            plugin.bungee.sendMessage("loka", killer.name + ".pvp.killwithlunge", "Achievement");
         }
     }
 

@@ -26,13 +26,9 @@ class VotAArtifact {
     public ChatColor teamColor = ChatColor.GRAY;
     public Integer progress = 0;
     public String region;
-    public Integer woolMinX = 0;
-    public Integer woolMinZ = 0;
-    public Integer woolMaxX = 0;
-    public Integer woolMaxZ = 0;
-    public Integer woolY = 0;
     public World world;
     public final List<Block> artifactBlocks = new ArrayList<>();
+    List<Block> woolBlocks = new ArrayList<>();
     public Location fireworkSource;
 
     public VotAArtifact(VotA vota, String name) {
@@ -66,24 +62,31 @@ class VotAArtifact {
             teamColor = ChatColor.RED;
         }
 
-        for (int x = woolMinX; x <= woolMaxX; x++) {
-            for (int z = woolMinZ; z <= woolMaxZ; z++) {
-                Block block = world.getBlockAt(x, woolY, z);
-                if (block.getType() == Material.WOOL) {
-                    block.setTypeIdAndData(35, getWoolColorData(team), true);
-                }
+        for (Block block : woolBlocks) {
+            if (block.getType() == Material.WOOL) {
+                block.setTypeIdAndData(35, getWoolColorData(team), true);
             }
         }
         vota.updateArtifactControlObjectives();
+    }
+
+    void setControlledArtifactColor(String team) {
+        for (Block block : artifactBlocks) {
+            if (team == null) {
+                block.setType(Material.OBSIDIAN);
+            } else {
+                block.setTypeIdAndData(35, getWoolColorData(team), true);
+            }
+        }
     }
 
     byte getWoolColorData(String team) {
         DyeColor color;
 
         //If the team is null, try the capturing team
-        if (team == null) {
-            team = capturingTeam;
-        }
+//        if (team == null) {
+//            team = capturingTeam;
+//        }
 
         if (team == null) {
             color = DyeColor.GRAY;
@@ -99,24 +102,24 @@ class VotAArtifact {
         if (capturingTeam == null) return;
 
         if (progress > 0 && progress < 30) {
-            int count = (int) (progress / 3.75);
+            int count = (int) (progress / 3.3);
             List<Block> changedBlocks = new ArrayList<>();
-            for (Block b : artifactBlocks) {
+            for (Block b : woolBlocks) {
                 b.setTypeIdAndData(35, getWoolColorData(capturingTeam), true);
                 changedBlocks.add(b);
                 count--;
                 if (count <= 0) break;
             }
-            for (Block b : artifactBlocks) {
+            for (Block b : woolBlocks) {
                 if (!changedBlocks.contains(b)) {
-                    b.setType(Material.OBSIDIAN);
+                    b.setTypeIdAndData(35, getWoolColorData(null), true);
                 }
             }
         } else {
             if (controlled && controllingTeam != null) {
-                for (Block b : artifactBlocks) b.setTypeIdAndData(35, getWoolColorData(controllingTeam), true);
+                for (Block b : woolBlocks) b.setTypeIdAndData(35, getWoolColorData(controllingTeam), true);
             } else {
-                for (Block b : artifactBlocks) b.setType(Material.OBSIDIAN);
+                for (Block b : woolBlocks) b.setTypeIdAndData(35, getWoolColorData(null), true);
             }
         }
     }
@@ -132,8 +135,9 @@ class VotAArtifact {
     public void setControlled(String team) {
         controlled = true;
         setControlledWoolColor(team);
+        setControlledArtifactColor(team);
         controllingTeam = team;
-        setVisualProgress();
+//        setVisualProgress();
     }
 
     public void setNeutral() {
@@ -141,7 +145,8 @@ class VotAArtifact {
         controlled = false;
         controllingTeam = null;
         setControlledWoolColor(null);
-        setVisualProgress();
+        setControlledArtifactColor(null);
+//        setVisualProgress();
     }
 
     public List<PvPPlayer> getCapturers(Collection<PvPPlayer> players) {

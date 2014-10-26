@@ -3,7 +3,6 @@ package com.cryptite.pvp.talents;
 import com.cryptite.pvp.CustomEffect;
 import com.cryptite.pvp.LokaVotA;
 import com.cryptite.pvp.PvPPlayer;
-import com.cryptite.pvp.listeners.SpeedRampHandler;
 import com.cryptite.pvp.utils.Combat;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -28,7 +27,7 @@ public class TalentAbility {
 
     //Numericals
     private final int cooldown;
-    private final int length;
+    public int length;
     private int abilitySecondsLeft = 0;
     private int cooldownSecondsLeft = 0;
 
@@ -42,20 +41,16 @@ public class TalentAbility {
     public boolean available = true;
     public boolean active = false;
     private boolean playerDead = false;
+    private boolean silenced = false;
 
     //Talent tasks
     private int taskId = 0;
     private int countdownBarTask;
     private int cooldownTask;
 
-    //Trap stuff
-    private Material machineBlockMaterial;
-
     //Misc
     private final Combat combat;
-    private byte machineBlockData;
     private final List<Material> invalidTrapMaterials = new ArrayList<>(asList(Material.AIR, Material.LEAVES, Material.LEAVES_2));
-    private SpeedRampHandler speedRampHandler;
 
     public TalentAbility(LokaVotA plugin, Talent talent, String name, Material material, int length, int cooldown) {
         this.plugin = plugin;
@@ -94,6 +89,7 @@ public class TalentAbility {
         //Cooldown duration task
         plugin.scheduler.runTaskLater(plugin,
                 () -> {
+                    if (silenced) return;
                     setItemAvailable(p);
                     available = true;
                 }, 20 * cooldown
@@ -112,12 +108,9 @@ public class TalentAbility {
 //        startCooldownIndicator(p);
 
         if (!plugin.talents.itemlessTalents.contains(talent)) {
-            if (talent.equals(Talent.EXPLOSIVE_ARROW)) {
-                if (p.getPlayer() == null) return;
-
-                ItemStack item = getAbilityItem(p.getPlayer());
-                if (item != null) item.setType(Material.COAL);
-            } else if (talent.equals(Talent.HEAL_ARROW)) {
+            if (talent.equals(Talent.EXPLOSIVE_ARROW)
+                    || talent.equals(Talent.HEAL_ARROW)
+                    || talent.equals(Talent.HOOK)) {
                 if (p.getPlayer() == null) return;
 
                 ItemStack item = getAbilityItem(p.getPlayer());
@@ -126,6 +119,31 @@ public class TalentAbility {
                 item.setType(Material.COAL);
             }
         }
+    }
+
+    public void silence(PvPPlayer p, int length) {
+        if (talent.equals(Talent.EXPLOSIVE_ARROW)
+                || talent.equals(Talent.HOOK)
+                || talent.equals(Talent.HEAL_ARROW)) {
+            //You can silence somebody's active loaded arrow
+            deactivate(p);
+        } else if (active) return;
+
+        //If available, turn to coal
+        if (available) {
+            ItemStack item = getAbilityItem(p.getPlayer());
+            if (item == null) return;
+            item.setType(Material.COAL);
+            available = false;
+        }
+
+        silenced = true;
+
+        //Make available after length
+        plugin.scheduler.runTaskLater(plugin, () -> {
+            silenced = false;
+            setItemAvailable(p);
+        }, 20 * length);
     }
 
     public void startCooldownIndicator(final PvPPlayer p) {
@@ -222,9 +240,13 @@ public class TalentAbility {
     Boolean talentEffects(final Player p) {
         switch (talent) {
             case BANDAGE:
-                playCustomSound(p, "Heal");
-
-                new Bandage(p, length);
+                playCustomSound(p, "Bandage");
+                PvPPlayer bandager = plugin.getAccount(p.getName());
+                if (bandager.bandage == null) {
+                    new Bandage(plugin.getAccount(p.getName()));
+                } else {
+                    bandager.bandage.start(bandager);
+                }
                 break;
             case LAST_STAND:
                 playCustomSound(p, "LastStand");
@@ -244,21 +266,11 @@ public class TalentAbility {
                 break;
 
             case QUAKE:
-                plugin.blockEffect(p.getLocation().clone().add(0, .3f, 0), CustomEffect.BLOCKDUST, Material.DIRT.getId(), 0, 25, .15f, 5);
-                playCustomSound(p, "Absorb_Cast");
+                plugin.blockEffect(p.getLocation().clone().add(0, .4f, 0), CustomEffect.BLOCKDUST, Material.DIRT.getId(), 0, 25, .15f, 5);
+                playCustomSound(p, "Quake");
 
                 PvPPlayer quakeOwner = plugin.getAccount(p.getName());
-                final List<String> playersQuaked = combat.aoeKnockback(p, quakeOwner, p.getLocation(), 10, 6.1, 0, 1.2f, null, Talent.QUAKE);
-
-                //Add players to rooted list after 2 seconds (about how long the airtime should last.
-                plugin.scheduler.runTaskLater(plugin, () -> {
-                    plugin.playersRooted.addAll(playersQuaked);
-                    plugin.lengthyEffect(playersQuaked, 5, CustomEffect.BLOCKDUST, Material.DIRT.getId(), (byte) 0, 4, .04f, 6);
-                }, 20 * 2);
-
-
-                //After 5 seconds, remove the players from the rooted list.
-                plugin.scheduler.runTaskLater(plugin, () -> plugin.playersRooted.removeAll(playersQuaked), 20 * 5);
+                combat.aoeTalent(quakeOwner, quakeOwner.getLocation(), 10, Talent.QUAKE, 3);
                 break;
 
             case LUNGE:
@@ -277,40 +289,13 @@ public class TalentAbility {
                         () -> plugin.scheduler.cancelTask(lungeID), 30);
                 break;
 
-            case ENDER_HOOK:
-                playCustomSound(p, "Resolve");
+            case HOOK:
+                playCustomSound(p, "HookLoad");
 
-//                taskId = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-//                        () -> plugin.effect(p.getLocation(), CustomEffect.FLAME, 3, .05f, 5), 5, 5
-//                );
-//
-//                //If they have a slow, remove it.
-//                if (p.hasPotionEffect(PotionEffectType.SLOW)) {
-//                    p.removePotionEffect(PotionEffectType.SLOW);
-//                }
-//
-//                //Apply speed buff
-//                if (plugin.getAccount(p.getName()).talents.contains(Talent.FLEET_FOOTED)) {
-//                    //If they have Fleet Footed, they already have Speed 1 permanently up, so up to 2.
-//                    for (PotionEffect potion : p.getActivePotionEffects()) {
-//                        if (potion.getType().equals(PotionEffectType.SPEED)) {
-//                            p.removePotionEffect(potion.getType());
-//                            p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * length, 2));
-//                            break;
-//                        }
-//                    }
-//
-//                    //After ability is over, we need to give them fleet footed back
-//                    plugin.scheduler.runTaskLater(plugin,
-//                            () -> {
-//                                if (!p.isDead()) {
-//                                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 50000, 0));
-//                                }
-//                            }, 20 * length + 10
-//                    );
-//                } else {
-//                    p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * length, 2));
-//                }
+                //Apply explosive arrow loaded particles.
+                taskId = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
+                        () -> plugin.effect(p.getLocation().add(0, .5f, 0), CustomEffect.FIREWORKS_SPARK, 1, .1f, 2f), 5, 10
+                );
                 break;
 
             case EXPLOSIVE_ARROW:
@@ -336,62 +321,9 @@ public class TalentAbility {
 
                 //Grant friendlies Strength
                 PvPPlayer owner = plugin.getAccount(p.getName());
-                final List<Player> friendliesAffected = combat.aoeBuffEffect(owner, p.getLocation(), 15, PotionEffectType.INCREASE_DAMAGE, 0, 6, "SiegeMachineBuff");
-                friendliesAffected.add(p);
+                combat.aoeTalent(owner, p.getLocation(), 15, Talent.RALLYING_CRY, length);
 
-                taskId = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-                        () -> {
-                            for (Player friendly : friendliesAffected) {
-                                if (friendly == null || friendly.isDead()) continue;
-                                plugin.effect(friendly.getLocation().add(0, .5f, 0), CustomEffect.RED_DUST, 5, .1f, 5);
-                            }
-                        }, 5, 5
-                );
-
-                //Give the friendlies a potion and speed
-                for (final Player friendly : friendliesAffected) {
-                    if (friendly == null || friendly.isDead()) continue;
-                    addPotion(friendly);
-
-                    //Apply speed buff
-                    if (plugin.getAccount(friendly.getName()).talents.contains(Talent.FLEET_FOOTED)) {
-                        //If they have Fleet Footed, they already have Speed 1 permanently up, so up to 2.
-                        for (PotionEffect potion : friendly.getActivePotionEffects()) {
-                            if (potion.getType().equals(PotionEffectType.SPEED)) {
-                                friendly.removePotionEffect(potion.getType());
-                                friendly.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * length, 2));
-                                break;
-                            }
-                        }
-
-                        //After ability is over, we need to give them fleet footed back
-                        plugin.scheduler.runTaskLater(plugin,
-                                () -> {
-                                    if (!friendly.isDead()) {
-                                        friendly.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 50000, 0));
-                                    }
-                                }, 20 * length + 10
-                        );
-                    } else {
-                        friendly.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * length, 2));
-                    }
-                }
-
-                //Activate the ground speed ramp
-                plugin.speedRamps.ramps.put(p.getName(), p.getLocation());
-
-                //Play trap FX for owner
-                taskId = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-                        () -> plugin.effect(plugin.speedRamps.ramps.get(p.getName()).clone().add(.5, 0, .5), CustomEffect.FIREWORKS_SPARK, 1, .1f, 2f), 5, 10
-                );
-
-                plugin.speedRamps.rampTasks.put(p.getName(), taskId);
-
-                //Cancel the ramp
-                plugin.scheduler.runTaskLater(plugin, () -> {
-                    plugin.speedRamps.ramps.remove(p.getName());
-                    plugin.speedRamps.rampTasks.remove(p.getName());
-                }, 20 * length);
+                plugin.speedRamps.createRamp(p, owner.team);
                 break;
 
             case LIFE_STEAL:
@@ -446,44 +378,18 @@ public class TalentAbility {
                 break;
 
             case SILENCE:
-//                if (speedRampHandler == null) break;
-//
-//                //Activate the trap
-//                plugin.scheduler.runTaskLater(plugin,
-//                        () -> plugin.speedRamps.ramps.put(p.getName(), speedRampHandler.location), 10
-//                );
-//
-//                speedRampHandler = new EnderCharge(p.getName(), l);
-//
-//                //Play trap FX for owner
-//                taskId = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-//                        () -> plugin.effect(p, speedRampHandler.location.clone().add(.5, 0, .5), CustomEffect.FIREWORKS_SPARK, 1, .1f, 2f), 5, 10
-//                );
-//
-//                plugin.speedRamps.rampTasks.put(p.getName(), taskId);
+                playCustomSound(p, "SilenceCast");
+                plugin.effect(p.getLocation().add(0, 1, 0), CustomEffect.PORTAL);
+
+                PvPPlayer silencer = plugin.getAccount(p.getName());
+                combat.aoeTalent(silencer, p.getLocation(), 10, Talent.SILENCE, 6);
                 break;
 
             case LIFE_SHIELD:
                 playCustomSound(p, "TeamGripHeal");
 
                 PvPPlayer shieldOwner = plugin.getAccount(p.getName());
-                final List<Player> friendliesShielded = combat.aoeBuffEffect(shieldOwner, p.getLocation(), 15, PotionEffectType.ABSORPTION, 1, length, "TeamGripHeal");
-                friendliesShielded.add(p);
-
-                taskId = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-                        () -> {
-                            for (Player shieldedFriendly : friendliesShielded) {
-                                if (shieldedFriendly == null || shieldedFriendly.isDead() || !shieldedFriendly.hasPotionEffect(PotionEffectType.ABSORPTION))
-                                    continue;
-                                plugin.effect(shieldedFriendly.getLocation().add(0, .5f, 0), CustomEffect.SLIME, 5, .1f, 2f);
-                            }
-                        }, 5, 10
-                );
-
-                //If 3 or more, achievement!
-//                if (nearbyPeople.size() >= 3 && !plugin.getAccount(p.getName()).provingGrounds) {
-//                    plugin.bungee.sendMessage(p.getName() + ".pvp.lifeshieldmultiple", "Achievement");
-//                }
+                combat.aoeTalent(shieldOwner, p.getLocation(), 15, Talent.LIFE_SHIELD, length);
                 break;
 
             case REFLEXES:
@@ -525,46 +431,11 @@ public class TalentAbility {
         return true;
     }
 
-    void addPotion(Player p) {
-        PvPPlayer pvpPlayer = plugin.getAccount(p.getName());
-        if (pvpPlayer.bg != null && !plugin.getBG(pvpPlayer.bg).matchStarted) return;
-
-        for (ItemStack item : p.getInventory()) {
-            //So long as it's the right potion and the player isn't maxed on the potions.
-            if (item != null
-                    && isHarmingPotion(item)) {
-
-                //5 is the max potions you can have.
-                if (item.getAmount() == 5) return;
-
-                item.setAmount(item.getAmount() + 1);
-                p.updateInventory();
-                return;
-            }
-        }
-
-        //Otherwise they have no potions in their inventory, so add away.
-        ItemStack potion = new ItemStack(Material.POTION, 1, (short) 16428);
-
-        //Get their saved preferences, that way we're putting potions on their bar where they expect them.
-        int slot = plugin.getAccount(p.getName()).getOrder(potion);
-        if (slot > -1) {
-            p.getInventory().setItem(slot, potion);
-        } else {
-            p.getInventory().addItem(potion);
-        }
-        p.updateInventory();
-    }
-
-    Boolean isHarmingPotion(ItemStack i) {
-        return i.getType().equals(Material.POTION) && i.getDurability() == 16428;
-    }
-
     void offEffect(PvPPlayer p) {
         switch (talent) {
             case LAST_STAND:
-                if (p.lastStandAttackers.size() >= 3 && !p.provingGrounds) {
-                    plugin.bungee.sendMessage(p.name + ".pvp.laststandmultiple", "Achievement");
+                if (p.lastStandAttackers.size() >= 3) {
+                    plugin.bungee.sendMessage("loka", p.name + ".pvp.laststandmultiple", "Achievement");
                 }
                 p.lastStandAttackers.clear();
 

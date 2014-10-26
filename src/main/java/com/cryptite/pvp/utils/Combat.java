@@ -4,10 +4,13 @@ import com.cryptite.pvp.CustomEffect;
 import com.cryptite.pvp.LokaVotA;
 import com.cryptite.pvp.PvPPlayer;
 import com.cryptite.pvp.talents.Talent;
+import com.cryptite.pvp.talents.TalentAbility;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
@@ -67,7 +70,7 @@ public class Combat {
 
             double distance = player.getLocation().distance(source);
             if (distance <= radius) {
-                if (!victim.hasTalentActive(Talent.ENDER_HOOK) && victim.hasTalent(Talent.BLAST_PROTECTION)) {
+                if (!victim.hasTalentActive(Talent.HOOK) && victim.hasTalent(Talent.BLAST_PROTECTION)) {
                     multiplier = multiplier / 2;
                     upValue = upValue / 2;
                     damageMultiplier = damageMultiplier / 2;
@@ -85,7 +88,7 @@ public class Combat {
                 }
 
                 //Then do knockback
-                if (!victim.hasTalentActive(Talent.ENDER_HOOK)) {
+                if (!victim.hasTalentActive(Talent.HOOK)) {
                     knockback(player, source, multiplier, upValue);
                 }
 
@@ -113,43 +116,6 @@ public class Combat {
         }
 
         return enemiesHit;
-    }
-
-    public int aoeDebuffEffect(PvPPlayer p, Location source, int radius, PotionEffectType effect, int multiplier, int seconds, String sound) {
-        int enemiesAffected = 0;
-
-        for (Entity e : source.getWorld().getEntities()) {
-            if (!(e instanceof Player) || e.isDead()) continue;
-            Player player = (Player) e;
-            PvPPlayer victim = plugin.getAccount(player.getName());
-
-            //If spectator
-            if (victim.spectator) continue;
-
-            //If same team
-            if (p != null && sameTeam(player.getName(), p.name)
-                    || p == null
-                    || p.name.equals(player.getName())) continue;
-
-            double distance = player.getLocation().distance(source);
-            if (distance <= radius) {
-                //If spectator or they have Last Stand, stop here
-                if (victim.hasTalentActive(Talent.LAST_STAND)) continue;
-
-                //Add potion effect
-                player.addPotionEffect(new PotionEffect(effect, 20 * seconds, multiplier));
-
-                if (sound != null) {
-                    playCustomSound(player, sound);
-                }
-
-                if (!player.getName().equals(p.name)) {
-                    enemiesAffected += 1;
-                }
-            }
-        }
-
-        return enemiesAffected;
     }
 
     public List<Player> aoeBuffEffect(PvPPlayer p, Location source, int radius, PotionEffectType effect, int multiplier, int seconds, String sound) {
@@ -186,6 +152,123 @@ public class Combat {
         return friendliesAffected;
     }
 
+    public void aoeTalent(PvPPlayer p, Location source, int radius, Talent talent, int length) {
+        int enemiesAffected = 0, friendliesAffected = 0;
+
+        for (Entity e : source.getWorld().getEntities()) {
+            if (!(e instanceof Player) || e.isDead()) continue;
+            Player player = (Player) e;
+
+            //Spectators always exempt from everything
+            if (plugin.getAccount(player.getName()).spectator) continue;
+
+            double distance = player.getLocation().distance(source);
+            if (distance <= radius) {
+
+                //Do same team stuff
+                if (sameTeam(player.getName(), p.name)) {
+                    if (talent.equals(Talent.HEAL_ARROW)) {
+                        //Small instant-heal
+                        heal(player, 4);
+
+                        //Apply Regen
+                        addPotionEffect(player, PotionEffectType.REGENERATION, 1, length);
+                    } else if (talent.equals(Talent.RALLYING_CRY)) {
+                        addPotionEffect(player, PotionEffectType.INCREASE_DAMAGE, 0, length);
+
+                        int rallyingCryID = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
+                                () -> {
+                                    if (player.isDead()) return;
+                                    plugin.effect(player.getLocation().add(0, .5f, 0), CustomEffect.RED_DUST, 5, .1f, 5);
+                                }, 5, 5
+                        );
+                        plugin.scheduler.runTaskLater(plugin, () -> plugin.scheduler.cancelTask(rallyingCryID), 20 * length);
+                        addHarmingPotion(player, Talent.RALLYING_CRY);
+                    } else if (talent.equals(Talent.LIFE_SHIELD)) {
+                        addPotionEffect(player, PotionEffectType.ABSORPTION, 1, length);
+
+                        int lifeShieldId = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
+                                () -> {
+                                    if (player.isDead() || !player.hasPotionEffect(PotionEffectType.ABSORPTION))
+                                        return;
+                                    plugin.effect(player.getLocation().add(0, .5f, 0), CustomEffect.SLIME, 5, .1f, 2f);
+                                }, 5, 10
+                        );
+                        plugin.scheduler.runTaskLater(plugin, () -> plugin.scheduler.cancelTask(lifeShieldId), 20 * length);
+                    }
+                } else {
+                    //Enemy team stuff
+                    if (talent.equals(Talent.HEAL_ARROW)) {
+                        addPotionEffect(player, PotionEffectType.WEAKNESS, 1, length);
+                        addPotionEffect(player, PotionEffectType.BLINDNESS, 2, 2);
+                    } else if (talent.equals(Talent.EXPLOSIVE_ARROW)) {
+                        //Apply wither
+                        addPotionEffect(player, PotionEffectType.WITHER, 1, length);
+                        addPotionEffect(player, PotionEffectType.BLINDNESS, 1, 3);
+                    } else if (talent.equals(Talent.FREEZING_TRAP)) {
+                        //Add slow and poison
+                        addPotionEffect(player, PotionEffectType.SLOW, 4, length);
+                        addPotionEffect(player, PotionEffectType.POISON, 1, length);
+
+                        //Add a snowball pop
+                        plugin.effect(player.getLocation(), CustomEffect.SNOWBALL_POOF, 20, 1);
+                        plugin.blockEffect(player.getLocation().add(0, 1, 0), CustomEffect.BLOCKDUST, Material.SNOW_BLOCK.getId(), 0, 13, .15f, 5);
+
+                        //Snow particles while they're frozed
+                        int splatterID = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
+                                () -> plugin.blockEffect(player.getLocation().add(0, .6f, 0), CustomEffect.BLOCKDUST, Material.SNOW_BLOCK.getId(), 0, 5, .04f, 7), 5, 7);
+
+                        plugin.scheduler.runTaskLater(plugin,
+                                () -> plugin.scheduler.cancelTask(splatterID), 20 * length);
+
+                    } else if (talent.equals(Talent.SILENCE)) {
+                        PvPPlayer pvpPlayer = plugin.getAccount(player.getName());
+                        playCustomSound(player, "Silence", .4f);
+                        for (TalentAbility t : pvpPlayer.talentAbilities.values()) {
+                            t.silence(pvpPlayer, length);
+                        }
+                        plugin.effect(player.getLocation().add(0, 1, 0), CustomEffect.MOB_SPELL, 15, 1, 1);
+                        if (pvpPlayer.bandage != null && pvpPlayer.bandage.active) pvpPlayer.bandage.cancel(true);
+                    } else if (talent.equals(Talent.QUAKE)) {
+                        addPotionEffect(player, PotionEffectType.SLOW, 4, 5);
+                        addPotionEffect(player, PotionEffectType.BLINDNESS, 2, 4);
+
+                        knockback(player, p.getLocation(), 0, 1.3f);
+
+                        //Dirt Kickup
+                        plugin.blockEffect(player.getLocation().add(0, .4f, 0), CustomEffect.BLOCKDUST, Material.DIRT.getId(), 0, 25, .15f, 5);
+
+                        int quakeID = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
+                                () -> plugin.blockEffect(player.getLocation().add(0, .2f, 0), CustomEffect.BLOCKDUST, Material.DIRT.getId(), 0, 7, .04f, 7), 0, 2);
+
+                        plugin.scheduler.runTaskLater(plugin,
+                                () -> plugin.scheduler.cancelTask(quakeID), 20 * length);
+                    }
+                }
+            }
+        }
+
+        //3 is the magic number for AoE talent achievements
+        if ((friendliesAffected >= 3 || enemiesAffected >= 3)) checkAchievement(talent, p);
+
+    }
+
+    private void checkAchievement(Talent talent, PvPPlayer p) {
+        if (talent.equals(Talent.HEAL_ARROW)) {
+            plugin.bungee.sendMessage("loka", p.name + ".pvp.healarrowmultiple", "Achievement");
+        } else if (talent.equals(Talent.LIFE_SHIELD)) {
+            plugin.bungee.sendMessage("loka", p.name + ".pvp.lifeshieldmultiple", "Achievement");
+        }
+    }
+
+    public void addPotionEffect(Player p, PotionEffectType effect, int multiplier, int seconds) {
+        //If player already has this, remove, so we can reapply properly.
+        if (p.hasPotionEffect(effect)) p.removePotionEffect(effect);
+
+        //Add potion effect
+        p.addPotionEffect(new PotionEffect(effect, 20 * seconds, multiplier));
+    }
+
     public int healNearbyFriendlies(Location l, PvPPlayer p, Integer amount) {
         int friendliesAffected = 0;
 
@@ -212,7 +295,8 @@ public class Combat {
     }
 
     public void smallHealPlayer(Player p, double amount) {
-        plugin.smallEffect(p.getLocation(), CustomEffect.HEART, 1, .1f, 1);
+//        playWorldCustomSound(p.getLocation(), "Heal", 5);
+        plugin.smallEffect(p.getLocation().add(0, 1, 0), CustomEffect.HEART, 1, .1f, 1);
         heal(p, amount);
     }
 
@@ -250,37 +334,44 @@ public class Combat {
     }
 
     public void hookPlayer(PvPPlayer p, Location loc) {
-        if (p.getPlayer() == null || p.hook == null) return;
+        if (p.getPlayer() == null) return;
 
-        if (!p.hook.canPull()) {
-            System.out.println("Pull result is: " + p.hook.getResult());
-            return;
-        }
+        playCustomSound(p.getPlayer(), "HookPull");
+//        if (!p.hook.canPull()) {
+//            System.out.println("Pull result is: " + p.hook.getResult());
+//            return;
+//        }
 
         pullTo(p.getPlayer(), loc);
 
         //Get rid of the hook rope after 3 seconds.
-        plugin.scheduler.runTask(plugin, () -> {
-            p.hook.despawn();
-            p.hook = null;
-        });
+//        plugin.scheduler.runTask(plugin, () -> {
+//            p.hook.despawn();
+//            p.hook = null;
+//        });
     }
 
     public void hookPlayer(PvPPlayer p, PvPPlayer hooker) {
-        if (p.getPlayer() == null || hooker.getPlayer() == null || hooker.hook == null) return;
+        if (p.getPlayer() == null || hooker.getPlayer() == null) return;
 
-        if (!hooker.hook.canPull()) {
-            System.out.println("Pull result is: " + p.hook.getResult());
-            return;
-        }
+//        if (!hooker.hook.canPull()) {
+//            System.out.println("Pull result is: " + p.hook.getResult());
+//            return;
+//        }
+
+        playCustomSound(hooker.getPlayer(), "HookPull");
+        playCustomSound(p.getPlayer(), "HookYank");
+        playCustomSound(p.getPlayer(), "HookPull");
+        //Blood Splatter
+        plugin.blockEffect(p.getLocation().add(0, 1.4f, 0), CustomEffect.BLOCKDUST, Material.REDSTONE_BLOCK.getId(), 0, 13, .15f, 5);
 
         pullTo(p.getPlayer(), hooker.getPlayer().getLocation());
 
         //Get rid of the hook rope after 3 seconds.
-        plugin.scheduler.runTask(plugin, () -> {
-            hooker.hook.setEnd(p.getPlayer().getLocation());
-            hooker.hook = null;
-        });
+//        plugin.scheduler.runTask(plugin, () -> {
+//            hooker.hook.setEnd(p.getPlayer().getLocation());
+//            hooker.hook = null;
+//        });
     }
 
     private static void pullTo(Entity e, Location loc) {
@@ -311,5 +402,81 @@ public class Combat {
         v.setY(y);
         v.setZ(z);
         e.setVelocity(v);
+    }
+
+    public void addHarmingPotion(Player p, Talent cause) {
+        PvPPlayer pvpPlayer = plugin.getAccount(p.getName());
+        if (!canReceivePotion(pvpPlayer)) return;
+
+        for (ItemStack item : p.getInventory()) {
+            //If item is null, not a harming potion, or they have the max potions, disregard
+            if (item == null || !isHarmingPotion(item)) continue;
+
+            //Can't have more than the max (except rallying cry, then you can have 1 more)
+            if (cause.equals(Talent.RALLYING_CRY)) {
+                if (item.getAmount() >= pvpPlayer.maxHarmingPotions + 1) return;
+            } else if (item.getAmount() >= pvpPlayer.maxHarmingPotions) return;
+
+            item.setAmount(item.getAmount() + 1);
+            p.playSound(p.getLocation(), Sound.ITEM_PICKUP, .5f, 1);
+            p.updateInventory();
+            return;
+        }
+
+        //Otherwise they have no potions in their inventory, so add away.
+        ItemStack potion = new ItemStack(Material.POTION, 1, (short) 16428);
+        addFreshPotion(p, potion);
+        p.playSound(p.getLocation(), Sound.ITEM_PICKUP, .5f, 1);
+    }
+
+    public void addHealingPotion(Player p) {
+        PvPPlayer pvpPlayer = plugin.getAccount(p.getName());
+        if (!canReceivePotion(pvpPlayer)) return;
+
+        for (ItemStack item : p.getInventory()) {
+            //If item is null, not a harming potion, or they have the max potions, disregard
+            if (item == null || !isHealingPotion(item)) continue;
+
+            //Can't have more than the max
+            if (item.getAmount() >= getMaxHealingPotions(pvpPlayer)) return;
+
+            item.setAmount(item.getAmount() + 1);
+            p.playSound(p.getLocation(), Sound.ITEM_PICKUP, .5f, 1);
+            p.updateInventory();
+            return;
+        }
+
+        //Otherwise they have no potions in their inventory, so add away.
+        ItemStack potion = new ItemStack(Material.POTION, 1, (short) 16389);
+        addFreshPotion(p, potion);
+        p.playSound(p.getLocation(), Sound.ITEM_PICKUP, .5f, 1);
+    }
+
+    private Boolean canReceivePotion(PvPPlayer p) {
+        return p.bg != null && plugin.getBG(p.bg) != null && plugin.getBG(p.bg).matchStarted;
+    }
+
+    private void addFreshPotion(Player p, ItemStack potion) {
+        //Get their saved preferences, that way we're putting potions on their bar where they expect them.
+        int slot = plugin.getAccount(p.getName()).getOrder(potion);
+        if (slot > -1) {
+            p.getInventory().setItem(slot, potion);
+        } else {
+            p.getInventory().addItem(potion);
+        }
+        p.updateInventory();
+    }
+
+    private Boolean isHarmingPotion(ItemStack i) {
+        return i.getType().equals(Material.POTION) && i.getDurability() == 16428;
+    }
+
+    private Boolean isHealingPotion(ItemStack i) {
+        return i.getType().equals(Material.POTION) && i.getDurability() == 16389;
+    }
+
+    private int getMaxHealingPotions(PvPPlayer p) {
+        if (p.hasTalent(Talent.POTENCY)) return 3;
+        return 2;
     }
 }

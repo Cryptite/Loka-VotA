@@ -1,17 +1,14 @@
 package com.cryptite.pvp.listeners;
 
-import com.cryptite.pvp.CustomEffect;
 import com.cryptite.pvp.LokaVotA;
+import com.cryptite.pvp.talents.Talent;
 import com.cryptite.pvp.utils.Combat;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,7 +29,7 @@ public class TrapHandler implements Runnable, Listener {
     public TrapHandler(LokaVotA plugin) {
         this.plugin = plugin;
         this.combat = new Combat(plugin);
-        plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, this, 100, 10);
+        plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, this, 100, 5);
     }
 
     @Override
@@ -54,21 +51,7 @@ public class TrapHandler implements Runnable, Listener {
                     //Activate the Trap!
                     playWorldCustomSound(trapLocation, "FreezingTrapActivate", 15);
 
-                    //Add slow and poison
-                    victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 20 * 6, 4));
-                    victim.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 20 * 6, 1));
-
-                    //Add a snowball pop
-                    plugin.effect(victim.getLocation(), CustomEffect.SNOWBALL_POOF, 20, 1);
-//                    plugin.effect(victim.getLocation(), CustomEffect.WITCH_MAGIC);
-
-                    plugin.blockEffect(victim.getLocation().add(0, 1, 0), CustomEffect.BLOCKDUST, Material.SNOW_BLOCK.getId(), 0, 13, .15f, 5);
-
-                    int splatterID = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-                            () -> plugin.blockEffect(victim.getLocation().add(0, .6f, 0), CustomEffect.BLOCKDUST, Material.SNOW_BLOCK.getId(), 0, 5, .04f, 7), 5, 7);
-
-                    plugin.scheduler.runTaskLater(plugin,
-                            () -> plugin.scheduler.cancelTask(splatterID), 20 * 6);
+                    combat.aoeTalent(plugin.getAccount(player), trapLocation, 3, Talent.FREEZING_TRAP, 4);
 
                     //Tell player via sound his trap went off
                     owner.playSound(owner.getLocation(), "FreezingTrapNotify", 2, 1);

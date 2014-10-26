@@ -26,9 +26,13 @@ public class Countdown implements Runnable {
     private Player countdownPlayer = null;
 
     public Countdown(String battleground, String message, int length) {
-        LokaVotA plugin = (LokaVotA) Bukkit.getPluginManager().getPlugin("LokaPvP");
+        LokaVotA plugin = (LokaVotA) Bukkit.getPluginManager().getPlugin("LokaVotA");
         if (battleground.equalsIgnoreCase("vota")) {
             this.battleground = plugin.vota;
+//        } else if (battleground.equalsIgnoreCase("overload")) {
+//            this.battleground = plugin.overload;
+        } else {
+            this.player = plugin.getAccount(battleground);
         }
         this.timerStarted = System.currentTimeMillis();
         this.message = message;
@@ -39,7 +43,7 @@ public class Countdown implements Runnable {
 
 
     public Countdown(String message, int length, Player p) {
-        LokaVotA plugin = (LokaVotA) Bukkit.getPluginManager().getPlugin("LokaPvP");
+        LokaVotA plugin = (LokaVotA) Bukkit.getPluginManager().getPlugin("LokaVotA");
         this.timerStarted = System.currentTimeMillis();
         this.message = message;
         this.length = length;

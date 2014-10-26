@@ -6,9 +6,11 @@ import com.cryptite.pvp.PvPPlayer;
 import com.cryptite.pvp.talents.Talent;
 import com.cryptite.pvp.utils.Combat;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_7_R4.entity.CraftEnderPearl;
 import org.bukkit.craftbukkit.v1_7_R4.entity.CraftThrownPotion;
-import org.bukkit.entity.*;
+import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Horse;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.ThrownPotion;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -26,7 +28,7 @@ import static com.cryptite.pvp.utils.LocationUtils.inWGRegion;
 import static com.cryptite.pvp.utils.LocationUtils.playCustomSound;
 
 public class PlayerDamageListener implements Listener {
-    private final Logger log = Logger.getLogger("LokaPvP-PlayerDamageListener");
+    private final Logger log = Logger.getLogger("LokaVotA-PlayerDamageListener");
     private final LokaVotA plugin;
     private final Combat combat;
     private final Random r;
@@ -68,8 +70,11 @@ public class PlayerDamageListener implements Listener {
             PvPPlayer pVictim = plugin.getAccount(victim.getName());
             PvPPlayer pAttacker;
 
+            //Cancel bandaging if they take ANY damage
+            if (pVictim.bandage != null && pVictim.bandage.active) pVictim.bandage.cancel(true);
+
             //Invulnerable when picking talents in the grounds
-            if (pVictim.provingGrounds && plugin.talents.viewingPlayers.contains(pVictim.name)) {
+            if (plugin.talents.viewingPlayers.contains(pVictim.name)) {
                 e.setCancelled(true);
                 playCustomSound(victim, "LastStandAbsorb");
                 return;
@@ -115,7 +120,7 @@ public class PlayerDamageListener implements Listener {
                 }
 
                 //Cancel event, reapply damage to prevent knockback
-                if (pVictim.hasTalentActive(Talent.ENDER_HOOK)) {
+                if (pVictim.hasTalentActive(Talent.HOOK)) {
                     e.setCancelled(true);
                     cause = Talent.SWORD_DAMAGE;
                     plugin.registerDamage(pVictim.name, pAttacker.name, Talent.SWORD_DAMAGE);
@@ -168,8 +173,8 @@ public class PlayerDamageListener implements Listener {
                     log.info("[Lunge] " + pVictim.name + " hit by " + pAttacker.name + " with lunge strike");
 
                     //This will kill the player
-                    if (victim.getHealth() - e.getDamage() <= 0 && !pAttacker.provingGrounds) {
-                        plugin.bungee.sendMessage(pAttacker.name + ".pvp.killwithlunge", "Achievement");
+                    if (victim.getHealth() - e.getDamage() <= 0) {
+                        plugin.bungee.sendMessage("loka", pAttacker.name + ".pvp.killwithlunge", "Achievement");
                     }
                 }
 
@@ -239,20 +244,29 @@ public class PlayerDamageListener implements Listener {
                     arrow.remove();
                 }
 
+
                 //Cancel if same team
                 if (combat.sameTeam(pAttacker, pVictim)) {
                     e.setCancelled(true);
                     return;
                 }
 
-//                //Cancel event, reapply damage to prevent knockback
-//                if (pVictim.hasTalentActive(Talent.ENDER_HOOK)) {
-//                    e.setCancelled(true);
-//                    cause = Talent.HOT_BOW;
-//                    plugin.registerDamage(pVictim.name, pAttacker.name, Talent.HOT_BOW);
-//                    victim.damage(e.getDamage());
-//                    return;
-//                }
+                if (pAttacker.hasTalentActive(Talent.HOOK)) {
+                    e.setCancelled(true);
+
+                    if (attacker.getLocation().distance(victim.getLocation()) > 30) {
+                        playCustomSound(attacker, "HookSnap");
+                        return;
+                    }
+
+                    combat.hookPlayer(pVictim, pAttacker);
+                    pAttacker.talentAbilities.get(Talent.HOOK).deactivate(pAttacker);
+                    arrow.setMetadata("hooked", new FixedMetadataValue(plugin, true));
+                    arrow.remove();
+                    return;
+                }
+
+                pAttacker.arrowHits++;
 
                 if (pAttacker.hasTalent(Talent.HOT_BOW)) {
                     if (r.nextInt(8) == 3) {
@@ -332,15 +346,6 @@ public class PlayerDamageListener implements Listener {
                         return;
                     }
 
-                    //Cancel event, reapply damage to prevent knockback
-                    if (pVictim.hasTalentActive(Talent.ENDER_HOOK)) {
-                        e.setCancelled(true);
-                        cause = Talent.POTION_SLINGER;
-                        plugin.registerDamage(pVictim.name, pAttacker.name, Talent.POTION_SLINGER);
-                        victim.damage(e.getDamage());
-                        return;
-                    }
-
                     //Player has bloodlust, redo the damage
                     if (pAttacker.getPlayer().hasPotionEffect(PotionEffectType.INCREASE_DAMAGE)) {
                         double newDamage = e.getDamage() + (e.getDamage() * .25);
@@ -348,30 +353,22 @@ public class PlayerDamageListener implements Listener {
                     }
 
                     if (pAttacker.hasTalent(Talent.SPAWN)) {
-                        log.info("Potion Damage (" + e.getDamage() + ") increased to " + (e.getDamage() + (e.getDamage() * spawnDamageBuff)) +
-                                " for spawn effect");
+                        log.info("Potion Damage (" + e.getDamage() + ") increased to "
+                                + (e.getDamage() + (e.getDamage() * spawnDamageBuff)) + " for spawn effect");
                         e.setDamage(e.getDamage() + (e.getDamage() * spawnDamageBuff));
+                    }
+
+                    if (pVictim.hasTalent(Talent.RESISTANT)) {
+                        double newDamage = e.getDamage() * .7;
+                        System.out.println("Dealing " + newDamage + " instead of " + e.getDamage() + " to "
+                                + pVictim.name + " because of Resistance.");
+                        e.setDamage(newDamage);
                     }
 
                     if (attacker.getWorld().getName().equalsIgnoreCase("world")) {
                         pAttacker.damage += e.getDamage();
                     }
                 }
-            } else if (e.getDamager() instanceof CraftEnderPearl) {
-                // Attacker is an arrow (projectile damage)
-                EnderPearl pearl = (EnderPearl) e.getDamager();
-                if (!(pearl.getShooter() instanceof Player)) {
-                    // Arrow was not fired by a player
-                    return;
-                }
-                pearl.setMetadata("hooked", new FixedMetadataValue(plugin, true));
-
-                attacker = (Player) pearl.getShooter();
-                pAttacker = plugin.getAccount(attacker.getName());
-
-                e.setCancelled(true);
-                System.out.println("Hooking " + pVictim.name + " toward " + pAttacker.name);
-                combat.hookPlayer(pVictim, pAttacker);
             }
 
             if (cause == null) plugin.clearDamageCause(victim.getName());
@@ -383,6 +380,9 @@ public class PlayerDamageListener implements Listener {
         if (e.getEntity() instanceof Player) {
             Player player = (Player) e.getEntity();
             PvPPlayer pVictim = plugin.getAccount(player.getName());
+
+            //Cancel bandaging if they take ANY damage
+            if (pVictim.bandage != null && pVictim.bandage.active) pVictim.bandage.cancel(true);
 
             //No durability loss in PvP
             for (ItemStack armor : player.getInventory().getArmorContents()) {
@@ -414,9 +414,9 @@ public class PlayerDamageListener implements Listener {
     public void onPlayerRegen(EntityRegainHealthEvent e) {
         if (!(e.getEntity() instanceof Player)) return;
 
-        //Regen is slower
-        if (r.nextInt(2) == 0) {
-            e.setCancelled(true);
-        }
+        PvPPlayer p = plugin.getAccount(((Player) e.getEntity()).getName());
+
+        //Regen is slower, but not in arenas
+        e.setAmount(e.getAmount() * .5);
     }
 }
