@@ -2,12 +2,14 @@ package com.cryptite.pvp;
 
 import com.cryptite.pvp.bungee.Bungee;
 import com.cryptite.pvp.data.Match;
+import com.cryptite.pvp.data.PremadeMatch;
 import com.cryptite.pvp.data.Town;
 import com.cryptite.pvp.listeners.*;
 import com.cryptite.pvp.talents.Talent;
 import com.cryptite.pvp.talents.Talents;
 import com.cryptite.pvp.vota.VotA;
 import com.mongodb.DB;
+import com.mongodb.MongoClient;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
@@ -23,6 +25,7 @@ import org.bukkit.scheduler.BukkitScheduler;
 import org.kitteh.vanish.staticaccess.VanishNoPacket;
 import org.kitteh.vanish.staticaccess.VanishNotLoadedException;
 
+import java.net.UnknownHostException;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -76,8 +79,8 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         bungee = new Bungee(this);
         pm.registerEvents(bungee, this);
 
-        world = server.getWorld("world");
-        spawn = new Location(world, 415, 44, 657.5);
+        world = server.getWorld("valley");
+        spawn = new Location(world, 94.5, 127, 17.5, 90, 0);
         r = new Random();
 
         pm.registerEvents(new PlayerJoinListener(this), this);
@@ -107,15 +110,23 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         talents = new Talents(this);
         pm.registerEvents(talents, this);
 
-        //AFK
-//        afk = new AFK(this);
-//        pm.registerEvents(afk, this);
+        initDbPool();
 
         PluginDescriptionFile pdfFile = this.getDescription();
         System.out.println(pdfFile.getName() + " version " + pdfFile.getVersion() + " is enabled!");
     }
 
     public void onDisable() {
+    }
+
+    private void initDbPool() {
+        try {
+            MongoClient mongoClient = new MongoClient("iron.minecraftarium.com", 27017);
+            db = mongoClient.getDB("loka");
+            System.out.println("[DB] Connected to Master DB");
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -226,6 +237,22 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         }
 
         vota.processNewPlayers(match.bgplayers);
+        vota.processSpectators(match.spectators);
+    }
+
+    public void processPremadeMatch(PremadeMatch match) {
+        //If vota is null, we need to create it.
+        if (vota == null) {
+            vota = new VotA(this, server.getWorld("valley"));
+        }
+
+        if (!vota.active) {
+            //Time to start a new vota.
+            vota.matchReady();
+            vota.active = true;
+        }
+
+        vota.processTeams(match);
         vota.processSpectators(match.spectators);
     }
 

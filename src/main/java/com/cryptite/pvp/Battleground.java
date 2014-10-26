@@ -1,6 +1,7 @@
 package com.cryptite.pvp;
 
 import com.cryptite.pvp.bungee.BattlegroundStatus;
+import com.cryptite.pvp.data.PremadeMatch;
 import com.cryptite.pvp.utils.Countdown;
 import com.cryptite.pvp.utils.Prowess;
 import com.cryptite.pvp.vota.VotA;
@@ -229,6 +230,24 @@ public class Battleground {
             p.bg = name;
             setTeam(p);
         }
+        sendMatchUpdate(true);
+    }
+
+    public void processTeams(PremadeMatch match) {
+        for (String player : match.blue) {
+            PvPPlayer p = plugin.getAccount(player);
+            p.bg = name;
+            blueTeam.put(p.name, p);
+            blueTeamMMR = getTeamMMR("blue");
+        }
+
+        for (String player : match.red) {
+            PvPPlayer p = plugin.getAccount(player);
+            p.bg = name;
+            redTeam.put(p.name, p);
+            redTeamMMR = getTeamMMR("red");
+        }
+
         sendMatchUpdate(true);
     }
 

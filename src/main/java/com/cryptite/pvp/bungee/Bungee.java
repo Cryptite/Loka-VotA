@@ -3,6 +3,7 @@ package com.cryptite.pvp.bungee;
 import com.cryptite.pvp.LokaVotA;
 import com.cryptite.pvp.data.Chat;
 import com.cryptite.pvp.data.Match;
+import com.cryptite.pvp.data.PremadeMatch;
 import mkremins.fanciful.FancyMessage;
 import net.minecraft.util.com.google.common.io.ByteArrayDataOutput;
 import net.minecraft.util.com.google.common.io.ByteStreams;
@@ -101,14 +102,10 @@ public class Bungee implements PluginMessageListener, Listener {
             String msg = in.readUTF();
             if (channelIn.equalsIgnoreCase("Match")) {
                 parseMatch(msg);
+            } else if (channelIn.equalsIgnoreCase("PremadeMatch")) {
+                parsePremadeMatch(msg);
             } else if (channelIn.equalsIgnoreCase("Chat")) {
                 parseChatMessage(msg);
-//            } else if (channelIn.equals("PlayerDisconnect")) {
-//                if (muteChatFromLoka) return;
-//                plugin.globalChatMessage(ChatColor.YELLOW + msg + " left Loka.", true);
-//            } else if (channelIn.equals("PlayerConnect")) {
-//                if (muteChatFromLoka) return;
-//                plugin.globalChatMessage(ChatColor.YELLOW + msg + " joined Loka.", true);
             } else if (channelIn.equals("PlayerCount")) {
                 sendPlayerList();
             } else if (channelIn.equals("Achievement")) {
@@ -144,6 +141,13 @@ public class Bungee implements PluginMessageListener, Listener {
         Match match = gson.fromJson(message, Match.class);
         plugin.processMatch(match);
         log.info("Received match from Loka: " + match);
+    }
+
+    private void parsePremadeMatch(String message) {
+        Gson gson = new Gson();
+        PremadeMatch match = gson.fromJson(message, PremadeMatch.class);
+        plugin.processPremadeMatch(match);
+        log.info("Received premade match from Loka: " + match);
     }
 
     void unlockAchievement(String name, Achievement achievement) {
