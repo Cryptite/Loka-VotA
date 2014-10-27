@@ -16,6 +16,9 @@ public class Status {
     public Status(LokaVotA plugin) {
         this.plugin = plugin;
         db = plugin.db;
+
+        //Always update on init, otherwise could be stuck at a false number
+        updatePlayers();
     }
 
     public void updatePlayers() {
