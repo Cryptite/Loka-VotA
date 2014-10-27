@@ -69,6 +69,7 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
     public DB db;
     //    private AFK afk;
     public ChatManager chat;
+    public Status status;
 
     public void onEnable() {
         pm = this.getServer().getPluginManager();
@@ -100,6 +101,7 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         getCommand("a").setExecutor(chat);
         getCommand("o").setExecutor(chat);
 
+
         //Traps
         traps = new TrapHandler(this);
         pm.registerEvents(traps, this);
@@ -111,6 +113,9 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         pm.registerEvents(talents, this);
 
         initDbPool();
+
+        //Status
+        status = new Status(this);
 
         PluginDescriptionFile pdfFile = this.getDescription();
         System.out.println(pdfFile.getName() + " version " + pdfFile.getVersion() + " is enabled!");
@@ -177,6 +182,7 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
                     bg.sendMatchUpdate(true);
                 }
                 bungee.sendPlayer(player);
+
             } else if (commandLabel.equalsIgnoreCase("talents")) {
                 talents.showTalentTree(player, null);
             } else if (commandLabel.equalsIgnoreCase("inspect")) {

@@ -20,6 +20,8 @@ public class PlayerQuitListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOW)
     public void onPlayerQuit(PlayerQuitEvent event) {
+        plugin.status.updatePlayers();
+
         //If the player is not in arenaplayers, their arena game is done and they'll be handled by Respawn most likely..
         if (!plugin.players.containsKey(event.getPlayer().getName())) return;
 

@@ -22,6 +22,8 @@ public class PlayerJoinListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOW)
     public void onPlayerJoin(PlayerJoinEvent event) {
+        plugin.status.updatePlayers();
+
         Player p = event.getPlayer();
         PvPPlayer player = plugin.getAccount(p.getName());
 
