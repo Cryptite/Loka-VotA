@@ -106,8 +106,6 @@ public class Bungee implements PluginMessageListener, Listener {
                 parsePremadeMatch(msg);
             } else if (channelIn.equalsIgnoreCase("Chat")) {
                 parseChatMessage(msg);
-            } else if (channelIn.equals("PlayerCount")) {
-                sendPlayerList();
             } else if (channelIn.equals("Achievement")) {
                 String playerName = msg.split("\\.")[0];
                 Achievement a = new Gson().fromJson(msg.split("\\.")[1], Achievement.class);
@@ -118,14 +116,6 @@ public class Bungee implements PluginMessageListener, Listener {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    void sendPlayerList() {
-        StringBuilder b = new StringBuilder();
-        for (Player p : plugin.server.getOnlinePlayers()) {
-            b.append(p.getName()).append(",");
-        }
-        sendMessage("loka", b.toString(), "PlayerCount");
     }
 
     void parseChatMessage(String msg) {
