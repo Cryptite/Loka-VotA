@@ -128,7 +128,6 @@ public class TalentAbility {
 
         //If available, turn to coal
         if (available) {
-//            System.out.println("" + talent + "silenced: was available");
             ItemStack item = getAbilityItem(p.getPlayer());
             if (item == null) return;
             item.setType(Material.COAL);
@@ -140,37 +139,12 @@ public class TalentAbility {
         } else {
             //Not available, so it was already on cooldown, redo the cooldown task
             int secondsUntilActive = TimeUtil.secondsUntil(abilityUsed, cooldown);
-//            System.out.println("" + talent + " was on cooldown, active in " + secondsUntilActive);
             if (secondsUntilActive < 6) {
                 cooldownTask.cancel();
                 plugin.scheduler.runTaskLater(plugin, () -> setItemAvailable(p), 20 * length);
             }
         }
     }
-
-//    public void startCooldownIndicator(final PvPPlayer p) {
-//        //Inventory ItemStack amount cooldown
-//        cooldownTask = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-//                () -> {
-//                    if (p.getPlayer().isDead()) playerDead = true;
-//
-//                    item = getCoalItem(p.getPlayer());
-//
-//                    if (!playerDead
-//                            && item != null
-//                            && cooldownSecondsLeft > 0
-//                            && !plugin.talents.itemlessTalents.contains(talent)) {
-//                        item.setAmount(cooldownSecondsLeft);
-//                    }
-//                    cooldownSecondsLeft -= 2;
-//
-////                        //If player WAS dead and no longer is, get that item and carry on.
-//                    if ((playerDead && !p.getPlayer().isDead())) {
-//                        playerDead = false;
-//                    }
-//                }, 0, 40
-//        );
-//    }
 
     public void deactivate(PvPPlayer p) {
         plugin.scheduler.cancelTask(taskId);
