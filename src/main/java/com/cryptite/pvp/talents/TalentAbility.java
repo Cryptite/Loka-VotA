@@ -4,6 +4,7 @@ import com.cryptite.pvp.CustomEffect;
 import com.cryptite.pvp.LokaVotA;
 import com.cryptite.pvp.PvPPlayer;
 import com.cryptite.pvp.utils.Combat;
+import com.cryptite.pvp.utils.TimeUtil;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -13,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -29,7 +31,7 @@ public class TalentAbility {
     private final int cooldown;
     public int length;
     private int abilitySecondsLeft = 0;
-    private int cooldownSecondsLeft = 0;
+    private long abilityUsed = 0;
 
     //Talent identifiers
     public final String name;
@@ -40,13 +42,11 @@ public class TalentAbility {
     //Talent states
     public boolean available = true;
     public boolean active = false;
-    private boolean playerDead = false;
-    private boolean silenced = false;
 
     //Talent tasks
     private int taskId = 0;
     private int countdownBarTask;
-    private int cooldownTask;
+    private BukkitTask cooldownTask;
 
     //Misc
     private final Combat combat;
@@ -71,8 +71,8 @@ public class TalentAbility {
         }
 
         available = false;
-        cooldownSecondsLeft = cooldown;
         item = talentItem;
+        abilityUsed = System.currentTimeMillis();
 
         //If this is a duration ability.
         if (length > 0) {
@@ -87,9 +87,8 @@ public class TalentAbility {
         }
 
         //Cooldown duration task
-        plugin.scheduler.runTaskLater(plugin,
+        cooldownTask = plugin.scheduler.runTaskLater(plugin,
                 () -> {
-                    if (silenced) return;
                     setItemAvailable(p);
                     available = true;
                 }, 20 * cooldown
@@ -104,8 +103,6 @@ public class TalentAbility {
                     abilitySecondsLeft -= 1;
                 }, 0, 20
         );
-
-//        startCooldownIndicator(p);
 
         if (!plugin.talents.itemlessTalents.contains(talent)) {
             if (talent.equals(Talent.EXPLOSIVE_ARROW)
@@ -127,48 +124,53 @@ public class TalentAbility {
                 || talent.equals(Talent.HEAL_ARROW)) {
             //You can silence somebody's active loaded arrow
             deactivate(p);
-        } else if (active) return;
+        }
 
         //If available, turn to coal
         if (available) {
+//            System.out.println("" + talent + "silenced: was available");
             ItemStack item = getAbilityItem(p.getPlayer());
             if (item == null) return;
             item.setType(Material.COAL);
             available = false;
+
+            //Do 6s countdown here
+            plugin.scheduler.runTaskLater(plugin, () -> setItemAvailable(p), 20 * length);
+
+        } else {
+            //Not available, so it was already on cooldown, redo the cooldown task
+            int secondsUntilActive = TimeUtil.secondsUntil(abilityUsed, cooldown);
+//            System.out.println("" + talent + " was on cooldown, active in " + secondsUntilActive);
+            if (secondsUntilActive < 6) {
+                cooldownTask.cancel();
+                plugin.scheduler.runTaskLater(plugin, () -> setItemAvailable(p), 20 * length);
+            }
         }
-
-        silenced = true;
-
-        //Make available after length
-        plugin.scheduler.runTaskLater(plugin, () -> {
-            silenced = false;
-            setItemAvailable(p);
-        }, 20 * length);
     }
 
-    public void startCooldownIndicator(final PvPPlayer p) {
-        //Inventory ItemStack amount cooldown
-        cooldownTask = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
-                () -> {
-                    if (p.getPlayer().isDead()) playerDead = true;
-
-                    item = getCoalItem(p.getPlayer());
-
-                    if (!playerDead
-                            && item != null
-                            && cooldownSecondsLeft > 0
-                            && !plugin.talents.itemlessTalents.contains(talent)) {
-                        item.setAmount(cooldownSecondsLeft);
-                    }
-                    cooldownSecondsLeft -= 2;
-
-//                        //If player WAS dead and no longer is, get that item and carry on.
-                    if ((playerDead && !p.getPlayer().isDead())) {
-                        playerDead = false;
-                    }
-                }, 0, 40
-        );
-    }
+//    public void startCooldownIndicator(final PvPPlayer p) {
+//        //Inventory ItemStack amount cooldown
+//        cooldownTask = plugin.scheduler.scheduleSyncRepeatingTask(plugin,
+//                () -> {
+//                    if (p.getPlayer().isDead()) playerDead = true;
+//
+//                    item = getCoalItem(p.getPlayer());
+//
+//                    if (!playerDead
+//                            && item != null
+//                            && cooldownSecondsLeft > 0
+//                            && !plugin.talents.itemlessTalents.contains(talent)) {
+//                        item.setAmount(cooldownSecondsLeft);
+//                    }
+//                    cooldownSecondsLeft -= 2;
+//
+////                        //If player WAS dead and no longer is, get that item and carry on.
+//                    if ((playerDead && !p.getPlayer().isDead())) {
+//                        playerDead = false;
+//                    }
+//                }, 0, 40
+//        );
+//    }
 
     public void deactivate(PvPPlayer p) {
         plugin.scheduler.cancelTask(taskId);
@@ -187,7 +189,7 @@ public class TalentAbility {
         //Player might've DC'd or something, so let's be sure.
         if (p.getPlayer() == null) return;
 
-        plugin.scheduler.cancelTask(cooldownTask);
+        abilityUsed = 0;
 
         //Set ability available
         if (!plugin.talents.itemlessTalents.contains(talent)) {
@@ -241,7 +243,7 @@ public class TalentAbility {
         switch (talent) {
             case BANDAGE:
                 playCustomSound(p, "Bandage");
-                PvPPlayer bandager = plugin.getAccount(p.getName());
+                PvPPlayer bandager = plugin.getAccount(p);
                 if (bandager.bandage == null) {
                     new Bandage(plugin.getAccount(p.getName()));
                 } else {

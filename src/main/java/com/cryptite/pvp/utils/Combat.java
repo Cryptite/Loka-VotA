@@ -288,7 +288,7 @@ public class Combat {
 
         //Heal the player too.
         plugin.effect(p.getLocation().add(0, 1, 0), CustomEffect.HEART, 1, .1f, 1);
-        heal(p.getPlayer(), 6);
+        heal(p.getPlayer(), amount);
         playCustomSound(p.getPlayer(), "Heal", 2f);
 
         return friendliesAffected;
@@ -298,6 +298,10 @@ public class Combat {
 //        playWorldCustomSound(p.getLocation(), "Heal", 5);
         plugin.smallEffect(p.getLocation().add(0, 1, 0), CustomEffect.HEART, 1, .1f, 1);
         heal(p, amount);
+    }
+
+    public Boolean spectator(String player) {
+        return plugin.getAccount(player).spectator;
     }
 
     public boolean sameTeam(String p1, String p2) {

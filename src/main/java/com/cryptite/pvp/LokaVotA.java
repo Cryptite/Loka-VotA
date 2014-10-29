@@ -273,6 +273,10 @@ public class LokaVotA extends JavaPlugin implements CommandExecutor {
         }
     }
 
+    public PvPPlayer getAccount(Player p) {
+        return getAccount(p.getName());
+    }
+
     public void effect(Location location, CustomEffect effectType) {
         effect(location, effectType, 10, 0.3f, 1);
     }

@@ -41,7 +41,7 @@ public class PotionListener implements Listener {
                 heal = true;
                 if (pThrower.talents.contains(Talent.HOLY_GRENADE)) {
                     e.setCancelled(true);
-                    int amount = new Random().nextInt(3) + 3;
+                    int amount = new Random().nextInt(2) + 1;
                     int friendliesAffected = combat.healNearbyFriendlies(e.getEntity().getLocation(), pThrower, amount);
 
                     //If 3 or more, achievement!
@@ -70,15 +70,5 @@ public class PotionListener implements Listener {
                 e.setIntensity(victim, 0);
             }
         }
-    }
-
-    void heal(Player p, double amount) {
-        double health = p.getHealth();
-        if (health < (20 - amount)) {
-            health += amount;
-        } else {
-            health = 20;
-        }
-        p.setHealth(health);
     }
 }

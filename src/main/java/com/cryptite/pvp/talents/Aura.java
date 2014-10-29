@@ -26,6 +26,7 @@ public class Aura implements Runnable {
 
         for (Player friendly : p.getPlayer().getWorld().getPlayers()) {
             if (friendly == null
+                    || combat.spectator(friendly.getName())
                     || !combat.sameTeam(friendly.getName(), p.name)
                     || friendly.getLocation().distance(p.getLocation()) > 15) continue;
 

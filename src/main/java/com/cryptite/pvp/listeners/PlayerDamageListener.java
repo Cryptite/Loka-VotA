@@ -111,7 +111,9 @@ public class PlayerDamageListener implements Listener {
                 attacker = (Player) e.getDamager();
                 pAttacker = plugin.getAccount(attacker.getName());
 
-                attacker.getItemInHand().setDurability((short) 0);
+                if (attacker.getItemInHand().getType().equals(Material.DIAMOND_SWORD)) {
+                    attacker.getItemInHand().setDurability((short) 0);
+                }
 
                 //Cancel if same team
                 if (combat.sameTeam(pAttacker, pVictim)) {
