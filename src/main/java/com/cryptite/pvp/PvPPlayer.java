@@ -122,14 +122,14 @@ public class PvPPlayer {
 
         rank = dbData.get("rank", rank);
 //        prowess = Integer.parseInt(dbData.get("prowess", prowess));
-        arrowHits = Integer.parseInt(dbData.get("arrowhits", arrowHits));
-        arrowsFired = Integer.parseInt(dbData.get("arrowsfired", arrowsFired));
-        valleyKills = Integer.parseInt(dbData.get("valleyKills", valleyKills));
-        valleyDeaths = Integer.parseInt(dbData.get("valleyDeaths", valleyDeaths));
-        valleyCaps = Integer.parseInt(dbData.get("valleyCaps", valleyCaps));
-        valleyWins = Integer.parseInt(dbData.get("valleyWins", valleyWins));
-        valleyLosses = Integer.parseInt(dbData.get("valleyLosses", valleyLosses));
-        bgRating = Integer.parseInt(dbData.get("bgRating", bgRating));
+        arrowHits = dbData.getInt("arrowhits", arrowHits);
+        arrowsFired = dbData.getInt("arrowsfired", arrowsFired);
+        valleyKills = dbData.getInt("valleyKills", valleyKills);
+        valleyDeaths = dbData.getInt("valleyDeaths", valleyDeaths);
+        valleyCaps = dbData.getInt("valleyCaps", valleyCaps);
+        valleyWins = dbData.getInt("valleyWins", valleyWins);
+        valleyLosses = dbData.getInt("valleyLosses", valleyLosses);
+        bgRating = dbData.getInt("bgRating", bgRating);
         valleyScore = getVotaScore();
         loadTalents(dbData.get("talents", null));
 
@@ -137,8 +137,7 @@ public class PvPPlayer {
         if (town != null) this.town = plugin.getTown(town);
 
         if (dbData.data != null) {
-            Map<String, Integer> inventoryData = (Map) dbData.data.get("inventoryorder");
-            if (inventoryData != null) inventoryOrder.putAll(inventoryData);
+            inventoryOrder.putAll(dbData.getMap("inventoryorder"));
         }
 
         if (valleyWins == 0 || valleyLosses == 0) updateMissingPvPData();

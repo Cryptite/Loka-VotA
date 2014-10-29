@@ -11,6 +11,7 @@ import com.mongodb.DBObject;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 
+import java.util.Map;
 import java.util.UUID;
 
 public class DBData {
@@ -50,6 +51,14 @@ public class DBData {
 
         DBCursor cursor = plugin.db.getCollection("towns").find(query);
         if (cursor.hasNext()) data = cursor.next();
+    }
+
+    public int getInt(String key, Integer defaultValue) {
+        return Integer.parseInt(get(key, defaultValue));
+    }
+
+    public Map getMap(String key) {
+        return (Map) data.get(key);
     }
 
     public String get(String key, Object defaultValue) {
